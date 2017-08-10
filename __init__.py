@@ -6,7 +6,6 @@ bl_info = {
     'warning': 'May crash blender',
     "location": "File > Import-Export > Source Engine texture import (VTF)",
     "description": "Import-Export Source Engine texture import (VTF)",
-    "warning": "",
     #"wiki_url": "http://www.barneyparker.com/blender-json-import-export-plugin",
     #"tracker_url": "http://www.barneyparker.com/blender-json-import-export-plugin",
     "category": "Import-Export"}
