@@ -1,5 +1,7 @@
 # from ctypes import c_ubyte,c_float
 # from PIL import Image
+from ctypes import create_string_buffer
+
 import numpy as np
 from pathlib import Path
 
@@ -70,16 +72,20 @@ class VTF:
 def export_texture(blender_texture,path):
     image_data = np.array(blender_texture.pixels,np.float)
     image_data = np.asarray(image_data*256,np.uint8)
+    alpha_view = image_data[3::4]
+    alpha_view[:] = 255
     def_options = vtf_lib.image_create_default_create_structure()
     def_options.ImageFormat = VTFLibEnums.ImageFormat.ImageFormatRGBA8888
     def_options.Flags |= VTFLibEnums.ImageFlag.ImageFlagEightBitAlpha
     w,h = blender_texture.size
-    vtf_lib.image_create_single(w, h, image_data.tobytes(), def_options)
+    image_data = create_string_buffer(image_data.tobytes())
+    image_data = vtf_lib.flip_image_external(image_data,w,h)
+    vtf_lib.image_create_single(w, h, image_data, def_options)
     vtf_lib.image_save(path)
 
 
 if __name__ == '__main__':
-    vtf = VTF(r'E:\PYTHON_STUFF\SourceVTF\test_data\DeathClaw_D.vtf')
+    vtf = VTF(r'E:\PYTHON_STUFF\SourceVTF\test_data\Alice_skirt.vtf')
     vtf.load()
     print(vtf_lib.get_image_flags())
     vtf.read_image()

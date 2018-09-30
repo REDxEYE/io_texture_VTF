@@ -15,6 +15,10 @@ full_path = os.path.dirname(__file__)
 
 
 # print(full_path)
+def pointer_to_array(poiter, size, type=c_ubyte):
+    return cast(poiter, POINTER(type * size))
+
+
 class VTFLib:
     # print(_vtf_lib)
     dll = WinDLL(os.path.join(full_path, _vtf_lib))
@@ -24,9 +28,6 @@ class VTFLib:
         self.image_buffer = c_int()
         self.create_image(byref(self.image_buffer))
         self.bind_image(self.image_buffer)
-
-    def pointer_to_array(self, poiter, size, type=c_ubyte):
-        return cast(poiter, POINTER(type * size))
 
     GetVersion = dll.vlGetVersion
     GetVersion.argtypes = []
@@ -158,7 +159,6 @@ class VTFLib:
 
     # vlImageCreateSingle(vlUInt uiWidth, vlUInt uiHeight, vlByte *lpImageDataRGBA8888, SVTFCreateOptions *VTFCreateOptions);
     def image_create_single(self, width, height, image_data, options):
-        image_data = create_string_buffer(image_data,len(image_data))
         image_data = cast(image_data,POINTER(c_byte))
         return self.ImageCreateSingle(width, height, image_data, options)
 
@@ -284,15 +284,15 @@ class VTFLib:
         size = self.compute_image_size(self.width(), self.height(), self.depth(), self.mipmap_count(),
                                        self.image_format().value)
         buff = self.ImageGetData(frame, face, slice, mipmap_level)
-        return self.pointer_to_array(buff, size)
+        return pointer_to_array(buff, size)
 
     def get_rgba8888(self):
         size = self.compute_image_size(self.width(), self.height(), self.depth(), self.mipmap_count(),
                                        VTFLibEnums.ImageFormat.ImageFormatRGBA8888)
         if self.image_format() == VTFLibEnums.ImageFormat.ImageFormatRGBA8888:
-            return self.pointer_to_array(self.get_image_data(0, 0, 0, 0), size)
+            return pointer_to_array(self.get_image_data(0, 0, 0, 0), size)
 
-        return self.pointer_to_array(self.convert_to_rgba8888(), size)
+        return pointer_to_array(self.convert_to_rgba8888(), size)
 
     def get_as_float(self):
         new_size = self.compute_image_size(self.width(), self.height(), self.depth(), self.mipmap_count(),
@@ -300,7 +300,7 @@ class VTFLib:
         new_buffer = cast((c_byte * new_size)(), POINTER(c_byte))
         if not self.ImageConvert(self.ImageGetData(0, 0, 0, 0), new_buffer, self.width(), self.height(),
                                  self.image_format().value, VTFLibEnums.ImageFormat.ImageFormatRGBA16161616):
-            return self.pointer_to_array(new_buffer, new_size, c_ubyte).contents
+            return pointer_to_array(new_buffer, new_size, c_ubyte).contents
         else:
             sys.stderr.write('CAN\'T CONVERT IMAGE\n')
             return 0
@@ -414,15 +414,42 @@ class VTFLib:
     ImageFlipImage.argtypes = [POINTER(c_byte), c_uint32, c_int32]
     ImageFlipImage.restype = None
 
-    def flip_image(self, image_data):
+    def flip_image(self, image_data,width=None,height=None,depth=1,mipmaps =-1):
+        width = width or self.width()
+        height = height or self.height()
+        depth = depth or self.depth()
+        mipmaps = mipmaps or self.mipmap_count()
         if self.image_format() != VTFLibEnums.ImageFormat.ImageFormatRGBA8888:
             image_data = self.convert_to_rgba8888()
         image_data = cast(image_data, POINTER(c_byte))
-        self.ImageFlipImage(image_data, self.width(), self.height())
+        self.ImageFlipImage(image_data, width, height)
+        size = self.compute_image_size(width,height, depth, mipmaps,
+                                       VTFLibEnums.ImageFormat.ImageFormatRGBA8888)
+
+        return pointer_to_array(image_data, size)
+    def flip_image_external(self, image_data,width=None,height=None):
+        width = width or self.width()
+        height = height or self.height()
+        image_data_p = cast(image_data, POINTER(c_byte))
+        # image_data_p = byref(image_data)
+        self.ImageFlipImage(image_data_p, width, height)
+        size = width*height*4
+
+        return pointer_to_array(image_data, size)
+
+    ImageMirrorImage = dll.vlImageMirrorImage
+    ImageMirrorImage.argtypes = [POINTER(c_byte), c_uint32, c_int32]
+    ImageMirrorImage.restype = None
+
+    def mirror_image(self, image_data):
+        if self.image_format() != VTFLibEnums.ImageFormat.ImageFormatRGBA8888:
+            image_data = self.convert_to_rgba8888()
+        image_data = cast(image_data, POINTER(c_byte))
+        self.ImageMirrorImage(image_data, self.width(), self.height())
         size = self.compute_image_size(self.width(), self.height(), self.depth(), self.mipmap_count(),
                                        VTFLibEnums.ImageFormat.ImageFormatRGBA8888)
 
-        return self.pointer_to_array(image_data, size)
+        return pointer_to_array(image_data, size)
 
     ImageConvertToRGBA8888 = dll.vlImageConvertToRGBA8888
     ImageConvertToRGBA8888.argtypes = [POINTER(c_byte), POINTER(c_byte), c_uint32, c_int32, c_uint32]
@@ -435,7 +462,7 @@ class VTFLib:
         # print('Input format:',self.image_format())
         if not self.ImageConvertToRGBA8888(self.ImageGetData(0, 0, 0, 0), new_buffer, self.width(), self.height(),
                                            self.image_format().value):
-            return self.pointer_to_array(new_buffer, new_size)
+            return pointer_to_array(new_buffer, new_size)
         else:
             sys.stderr.write('CAN\'T CONVERT IMAGE\n')
             return 0
@@ -450,7 +477,7 @@ class VTFLib:
         new_buffer = cast((c_byte * new_size)(), POINTER(c_byte))
         if not self.ImageConvert(self.ImageGetData(0, 0, 0, 0), new_buffer, self.width(), self.height(),
                                  self.image_format().value, format):
-            return self.pointer_to_array(new_buffer, new_size)
+            return pointer_to_array(new_buffer, new_size)
         else:
             sys.stderr.write('CAN\'T CONVERT IMAGE\n')
             return 0
