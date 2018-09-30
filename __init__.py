@@ -76,7 +76,7 @@ class VMTImporter(bpy.types.Operator):
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 class VTFExport(bpy.types.Operator):
-    """Load Source Engine VMT material"""
+    """Export VTF texture"""
     bl_idname = "export_texture.vtf"
     bl_label = "Export VTF"
     bl_options = {'UNDO'}
