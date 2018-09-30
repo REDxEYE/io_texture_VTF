@@ -75,15 +75,42 @@ class VMTImporter(bpy.types.Operator):
         wm = context.window_manager
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
+class VTFExport(bpy.types.Operator):
+    """Load Source Engine VMT material"""
+    bl_idname = "export_texture.vtf"
+    bl_label = "Export VTF"
+    bl_options = {'UNDO'}
+
+    filepath = StringProperty(
+            subtype='FILE_PATH',
+            )
+
+    filter_glob = StringProperty(default="*.vtf", options={'HIDDEN'})
+
+    def execute(self, context):
+        sima = context.space_data
+        ima = sima.image
+        print(context)
+        VTF.export_texture(ima,self.filepath)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        wm.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 
 def menu_import(self, context):
     self.layout.operator(VTFImporter.bl_idname, text="VTF texture (.vtf)")
     self.layout.operator(VMTImporter.bl_idname, text="VMT texture (.vmt)")
 
+def export(self,context):
+    self.layout.operator(VTFExport.bl_idname,text='Export to VTF')
+
 def register():
     bpy.utils.register_module(__name__)
     bpy.types.INFO_MT_file_import.append(menu_import)
+    bpy.types.IMAGE_MT_image.append(export)
 
 
 def unregister():

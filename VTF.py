@@ -67,6 +67,15 @@ class VTF:
             except Exception as ex:
                 print('Caught exception "{}" '.format(ex))
 
+def export_texture(blender_texture,path):
+    image_data = np.array(blender_texture.pixels,np.float)
+    image_data = np.asarray(image_data*256,np.uint8)
+    def_options = vtf_lib.image_create_default_create_structure()
+    def_options.ImageFormat = VTFLibEnums.ImageFormat.ImageFormatRGBA8888
+    def_options.Flags |= VTFLibEnums.ImageFlag.ImageFlagEightBitAlpha
+    w,h = blender_texture.size
+    vtf_lib.image_create_single(w, h, image_data.tobytes(), def_options)
+    vtf_lib.image_save(path)
 
 
 if __name__ == '__main__':

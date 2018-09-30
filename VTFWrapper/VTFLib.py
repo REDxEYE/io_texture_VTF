@@ -3,8 +3,6 @@ import platform
 import sys
 from ctypes import *
 
-
-
 try:
     from VTFWrapper.VTFLibEnums import ImageFlag
     import VTFLibEnums, VTFLibConstants, VTFLibStructures
@@ -141,8 +139,9 @@ class VTFLib:
     ImageCreateDefaultCreateStructure.argtypes = [POINTER(VTFLibStructures.CreateOptions)]
     ImageCreateDefaultCreateStructure.restype = None
 
-    def image_create_default_create_structure(self, create_oprions):
-        self.ImageCreateDefaultCreateStructure(pointer(create_oprions))
+    def image_create_default_create_structure(self):
+        create_oprions = VTFLibStructures.CreateOptions()
+        self.ImageCreateDefaultCreateStructure(byref(create_oprions))
         return create_oprions
 
     ImageCreate = dll.vlImageCreate
@@ -152,6 +151,16 @@ class VTFLib:
 
     def image_create(self, width, height, frames, faces, slices, image_format, thumbnail, mipmaps, nulldata):
         return self.ImageCreate(width, height, frames, faces, slices, image_format, thumbnail, mipmaps, nulldata)
+
+    ImageCreateSingle = dll.vlImageCreateSingle
+    ImageCreateSingle.argtypes = [c_int32, c_int32, POINTER(c_byte), POINTER(VTFLibStructures.CreateOptions)]
+    ImageCreateSingle.restype = c_bool
+
+    # vlImageCreateSingle(vlUInt uiWidth, vlUInt uiHeight, vlByte *lpImageDataRGBA8888, SVTFCreateOptions *VTFCreateOptions);
+    def image_create_single(self, width, height, image_data, options):
+        image_data = create_string_buffer(image_data,len(image_data))
+        image_data = cast(image_data,POINTER(c_byte))
+        return self.ImageCreateSingle(width, height, image_data, options)
 
     ImageDestroy = dll.vlImageDestroy
     ImageDestroy.argtypes = []
@@ -467,10 +476,11 @@ class VTFLib:
 
 if __name__ == '__main__':
     a = VTFLib()
-    a.image_load(
-        r"G:\SteamLibrary\SteamApps\common\SourceFilmmaker\game\usermod\materials\models\skuddbutt\mavis\body_clothed.vtf",
-        False)
+    print(a.image_create_default_create_structure())
+    # a.image_load(
+    #     r"G:\SteamLibrary\SteamApps\common\SourceFilmmaker\game\usermod\materials\models\skuddbutt\mavis\body_clothed.vtf",
+    #     False)
     print(a.image_format())
-    print(ImageFlag(a.get_image_flags()).get_flag(ImageFlag.ImageFlagBorder))
+    # print(a.get_image_flags()).get_flag(ImageFlag.ImageFlagBorder)
     # a.image_save("G:\\SteamLibrary\\SteamApps\\common\\SourceFilmmaker\\game\\usermod\\materials\\models\\Red_eye\\Endless\\Feline\\Body2.vtf")
     print(a.get_last_error())
