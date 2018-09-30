@@ -60,7 +60,7 @@ class VTF:
             image.pack(as_png=True)
         except Exception as ex:
             print('Caught exception "{}" '.format(ex))
-        if self.has_alpha:
+        if self.has_alpha and any(alpha):
             print('Saving alpha')
             try:
                 alpha_im = bpy.data.images.new(self.filename + '_A', width=vtf_lib.width(), height=vtf_lib.height())
@@ -72,8 +72,8 @@ class VTF:
 def export_texture(blender_texture,path):
     image_data = np.array(blender_texture.pixels,np.float)
     image_data = np.asarray(image_data*255,np.uint8)
-    alpha_view = image_data[3::4]
-    alpha_view[:] = 255
+    # alpha_view = image_data[3::4]
+    # alpha_view[:] = 255
     def_options = vtf_lib.image_create_default_create_structure()
     def_options.ImageFormat = VTFLibEnums.ImageFormat.ImageFormatRGBA8888
     def_options.Flags |= VTFLibEnums.ImageFlag.ImageFlagEightBitAlpha
