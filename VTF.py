@@ -72,7 +72,6 @@ class VTF:
 def export_texture(blender_texture,path):
     image_data = np.array(blender_texture.pixels,np.float)
     image_data = np.asarray(image_data*255,np.uint8)
-    image_data = np.asarray(image_data,np.uint8)
     alpha_view = image_data[3::4]
     alpha_view[:] = 255
     def_options = vtf_lib.image_create_default_create_structure()
