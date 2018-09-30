@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Source Engine VTF Texture import",
     "author": "RED_EYE",
-    "version": (0, 7),
+    "version": (0, 9),
     "blender": (2, 78, 0),
     'warning': 'May crash blender',
     "location": "File > Import-Export > Source Engine texture import (VTF)",
