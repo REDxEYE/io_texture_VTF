@@ -42,7 +42,7 @@ class VTF:
         rgba_data = vtf_lib.flip_image(rgba_data)
         pixels = np.divide(rgba_data.contents, 255.0)
         alpha = []
-        if vtf_lib.get_image_flags().get_flag(ImageFlag.ImageFlagEightBitAlpha):
+        if vtf_lib.get_image_flags().get_flag(ImageFlag.ImageFlagEightBitAlpha) or vtf_lib.get_image_flags().get_flag(ImageFlag.ImageFlagOneBitAlpha):
             self.has_alpha = True
             print('Image has alpha channel, splitting and removing it!')
             alpha_view = pixels[3::4]
