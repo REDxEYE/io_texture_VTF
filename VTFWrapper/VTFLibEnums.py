@@ -1,5 +1,6 @@
 from ctypes import c_uint32
 
+
 class EnumerationType(type(c_uint32)):
     def __new__(metacls, name, bases, dict):
         if not "_members_" in dict:
@@ -12,9 +13,9 @@ class EnumerationType(type(c_uint32)):
         else:
             _members_ = dict["_members_"]
 
-        dict["_reverse_map_"] = { v: k for k, v in _members_.items() }
+        dict["_reverse_map_"] = {v: k for k, v in _members_.items()}
         cls = type(c_uint32).__new__(metacls, name, bases, dict)
-        for key,value in cls._members_.items():
+        for key, value in cls._members_.items():
             globals()[key] = value
         return cls
 
@@ -22,17 +23,12 @@ class EnumerationType(type(c_uint32)):
         return "<Enumeration %s>" % self.__name__
 
 
-
-class CEnumeration(c_uint32,metaclass=EnumerationType):
-    _members_     = {}
+class CEnumeration(c_uint32, metaclass=EnumerationType):
+    _members_ = {}
 
     def __repr__(self):
         value = self.value
-        return "%s(%d)" % (
-            # self.__class__.__name__,
-            self._reverse_map_.get(value, '(unknown)'),
-            value
-        )
+        return "<{} {}>".format(self.__class__.__name__,self.name)
 
     @property
     def name(self):
@@ -45,11 +41,39 @@ class CEnumeration(c_uint32,metaclass=EnumerationType):
         return type(self) == type(other) and self.value == other.value
 
     @classmethod
-    def from_param(self,value):
+    def from_param(self, value):
 
         # print('lel',value)
         self.value = value
+class CFlag(c_uint32, metaclass=EnumerationType):
+    _members_ = {}
 
+    def __repr__(self):
+        value = self.value
+        keys = []
+        for val, name in self._reverse_map_.items():
+            if value & val:
+                keys.append(name)
+        return "<{} {}>".format(self.__class__.__name__," | ".join(keys))
+
+    def get_flag(self,flag):
+        return bool(self.value&flag)
+
+    @property
+    def name(self):
+        return self._reverse_map_.get(self.value, '(unknown)')
+
+    def __eq__(self, other):
+        if isinstance(other, int):
+            return self.value == other
+
+        return type(self) == type(other) and self.value == other.value
+
+    @classmethod
+    def from_param(self, value):
+
+        # print('lel',value)
+        self.value = value
 
 
 class Option(CEnumeration):
@@ -79,6 +103,7 @@ class Option(CEnumeration):
     OptionXSharpenThreshold = 17
 
     OptionVMTParseMode = 18
+
 
 class ImageFormat(CEnumeration):
     ImageFormatRGBA8888 = 0
@@ -114,7 +139,8 @@ class ImageFormat(CEnumeration):
     ImageFormatCount = 30
     ImageFormatNone = -1
 
-class ImageFlag(CEnumeration):
+
+class ImageFlag(CFlag):
     ImageFlagNone = 0x00000000
     ImageFlagPointSample = 0x00000001
     ImageFlagTrilinear = 0x00000002
@@ -148,6 +174,7 @@ class ImageFlag(CEnumeration):
     ImageFlagBorder = 0x20000000
     ImageFlagCount = 30
 
+
 class CubemapFace(CEnumeration):
     CubemapFaceRight = 0
     CubemapFaceLeft = 1
@@ -157,6 +184,7 @@ class CubemapFace(CEnumeration):
     CubemapFaceDown = 5
     CubemapFaceSphereMap = 6
     CubemapFaceCount = 7
+
 
 class MipmapFilter(CEnumeration):
     MipmapFilterPoint = 0
@@ -174,6 +202,7 @@ class MipmapFilter(CEnumeration):
     MipmapFilterBlackman = 12
     MipmapFilterKaiser = 13
     MipmapFilterCount = 14
+
 
 class SharpenFilter(CEnumeration):
     SharpenFilterNone = 0
@@ -197,12 +226,14 @@ class SharpenFilter(CEnumeration):
     SharpenFilterWarpSharp = 18
     SharpenFilterCount = 19
 
+
 class DXTQuality(CEnumeration):
     DXTQualityLow = 0
     DXTQualityMedium = 1
     DXTQualityHigh = 2
     DXTQualityHighest = 3
     DXTQualityCount = 4
+
 
 class KernelFilter(CEnumeration):
     KernelFilter4x = 0
@@ -212,6 +243,7 @@ class KernelFilter(CEnumeration):
     KernelFilter9x9 = 4
     KernelFilterDuDv = 5
     KernelFilterCount = 6
+
 
 class HeightConversionMethod(CEnumeration):
     HeightConversionMethodAlpha = 0
@@ -225,12 +257,14 @@ class HeightConversionMethod(CEnumeration):
     # HeightConversionMethodNormalize = auto()
     HeightConversionMethodCount = 8
 
+
 class NormalAlphaResult(CEnumeration):
     NormalAlphaResultNoChange = 0
     NormalAlphaResultHeight = 1
     NormalAlphaResultBlack = 2
     NormalAlphaResultWhite = 3
     NormalAlphaResultCount = 4
+
 
 class ResizeMethod(CEnumeration):
     ResizeMethodNearestPowerTwo = 0
@@ -239,18 +273,23 @@ class ResizeMethod(CEnumeration):
     ResizeMethodSet = 3
     ResizeMethodCount = 4
 
+
 class ResourceFlag(CEnumeration):
     ResourceFlagNoDataChunk = 0x02
     ResourceFlagCount = 1
+
 
 class ResourceType(CEnumeration):
     ResourceTypeLowResolutionImage = 0x01
     ResourceTypeImage = 0x30
     ResourceTypeSheet = 0x10
     ResourceTypeCRC = ord('C') | (ord('R') << 8) | (ord('C') << 24) | (ResourceFlag.ResourceFlagNoDataChunk << 32)
-    ResourceTypeLODControl = ord('L') | (ord('O') << 8) | (ord('D') << 24) | (ResourceFlag.ResourceFlagNoDataChunk << 32)
-    ResourceTypeTextureSettingsEx = ord('T') | (ord('S') << 8) | (ord('O') << 24) | (ResourceFlag.ResourceFlagNoDataChunk << 32)
+    ResourceTypeLODControl = ord('L') | (ord('O') << 8) | (ord('D') << 24) | (
+                ResourceFlag.ResourceFlagNoDataChunk << 32)
+    ResourceTypeTextureSettingsEx = ord('T') | (ord('S') << 8) | (ord('O') << 24) | (
+                ResourceFlag.ResourceFlagNoDataChunk << 32)
     ResourceTypeKeyValueData = ord('K') | (ord('V') << 8) | (ord('D') << 24)
+
 
 class Proc(CEnumeration):
     ProcReadClose = 0
@@ -266,10 +305,12 @@ class Proc(CEnumeration):
     ProcWriteSize = 10
     ProcWriteTell = 11
 
+
 class SeekMode(CEnumeration):
     Begin = 0
     Current = 1
     End = 2
+
 
 if __name__ == '__main__':
     a = Proc(5)
