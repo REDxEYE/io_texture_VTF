@@ -3,9 +3,9 @@
 bl_info = {
     "name": "Source Engine VTF Texture import",
     "author": "RED_EYE",
-    "version": (0, 10,),
+    "version": (1, 0,),
     "blender": (2, 78, 0),
-    'warning': 'May crash blender',
+    'warning': 'Uses a lot of ram (1Gb for 4k texture)',
     "location": "File > Import-Export > Source Engine texture import (VTF)",
     "description": "Import-Export Source Engine texture import (VTF)",
     #"wiki_url": "http://www.barneyparker.com/blender-json-import-export-plugin",
