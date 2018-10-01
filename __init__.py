@@ -12,8 +12,8 @@ bl_info = {
     #"tracker_url": "http://www.barneyparker.com/blender-json-import-export-plugin",
     "category": "Import-Export"}
 from . import VTF
-from . import VMT
-from . import BlenderMaterial
+# from . import VMT
+# from . import BlenderMaterial
 
 import bpy
 
@@ -34,14 +34,12 @@ class VTFImporter(bpy.types.Operator):
     filepath = StringProperty(
             subtype='FILE_PATH',
             )
-
+    load_alpha = BoolProperty(default=False, name='Load alpha')
+    only_alpha = BoolProperty(default=False, name='Only load alpha')
     filter_glob = StringProperty(default="*.vtf", options={'HIDDEN'})
 
     def execute(self, context):
-        img = VTF.VTF(self.filepath)
-        img.load()
-        img.read_image()
-
+        VTF.import_texture(self.filepath,self.load_alpha,self.only_alpha)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -49,32 +47,32 @@ class VTFImporter(bpy.types.Operator):
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-class VMTImporter(bpy.types.Operator):
-    """Load Source Engine VMT material"""
-    bl_idname = "import_texture.vmt"
-    bl_label = "Import VMT"
-    bl_options = {'UNDO'}
-
-    filepath = StringProperty(
-            subtype='FILE_PATH',
-            )
-
-    filter_glob = StringProperty(default="*.vmt", options={'HIDDEN'})
-    game = StringProperty(name="PATH TO GAME",subtype='FILE_PATH',default = "" )
-    override = BoolProperty(default = False,name='Override existing?')
-
-    def execute(self, context):
-        vmt = VMT.VMT(self.filepath,self.game)
-        mat = BlenderMaterial.BlenderMaterial(vmt)
-        mat.load_textures()
-        if mat.create_material(self.override) == 'EXISTS' and not self.override:
-            self.report({'INFO'},'{} material already exists')
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        wm = context.window_manager
-        wm.fileselect_add(self)
-        return {'RUNNING_MODAL'}
+# class VMTImporter(bpy.types.Operator):
+#     """Load Source Engine VMT material"""
+#     bl_idname = "import_texture.vmt"
+#     bl_label = "Import VMT"
+#     bl_options = {'UNDO'}
+#
+#     filepath = StringProperty(
+#             subtype='FILE_PATH',
+#             )
+#
+#     filter_glob = StringProperty(default="*.vmt", options={'HIDDEN'})
+#     game = StringProperty(name="PATH TO GAME",subtype='FILE_PATH',default = "" )
+#     override = BoolProperty(default = False,name='Override existing?')
+#
+#     def execute(self, context):
+#         vmt = VMT.VMT(self.filepath,self.game)
+#         mat = BlenderMaterial.BlenderMaterial(vmt)
+#         mat.load_textures()
+#         if mat.create_material(self.override) == 'EXISTS' and not self.override:
+#             self.report({'INFO'},'{} material already exists')
+#         return {'FINISHED'}
+#
+#     def invoke(self, context, event):
+#         wm = context.window_manager
+#         wm.fileselect_add(self)
+#         return {'RUNNING_MODAL'}
 class VTFExport(bpy.types.Operator):
     """Export VTF texture"""
     bl_idname = "export_texture.vtf"
@@ -102,7 +100,7 @@ class VTFExport(bpy.types.Operator):
 
 def menu_import(self, context):
     self.layout.operator(VTFImporter.bl_idname, text="VTF texture (.vtf)")
-    self.layout.operator(VMTImporter.bl_idname, text="VMT texture (.vmt)")
+    # self.layout.operator(VMTImporter.bl_idname, text="VMT texture (.vmt)")
 
 def export(self,context):
     self.layout.operator(VTFExport.bl_idname,text='Export to VTF')
