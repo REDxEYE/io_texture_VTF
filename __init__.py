@@ -34,7 +34,7 @@ class VTFImporter(bpy.types.Operator):
     filepath = StringProperty(
             subtype='FILE_PATH',
             )
-    load_alpha = BoolProperty(default=False, name='Load alpha')
+    load_alpha = BoolProperty(default=True, name='Load alpha into separate image')
     only_alpha = BoolProperty(default=False, name='Only load alpha')
     filter_glob = StringProperty(default="*.vtf", options={'HIDDEN'})
 

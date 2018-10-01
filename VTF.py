@@ -34,7 +34,7 @@ def import_texture(path,load_alpha = True,alpha_only = False):
         raise Exception("Failed to load texture :{}".format(vtf_lib.get_last_error()))
     rgba_data = vtf_lib.convert_to_rgba8888()
     print('Converted')
-    rgba_data = vtf_lib.flip_image(rgba_data)
+    rgba_data = vtf_lib.flip_image_external(rgba_data,vtf_lib.width(),vtf_lib.height())
     print('Flipped')
     pixels = np.array(rgba_data.contents,np.uint8)
     pixels = pixels.astype(np.float16,copy=False)
@@ -67,6 +67,7 @@ def import_texture(path,load_alpha = True,alpha_only = False):
             image.pack(as_png=True)
         except Exception as ex:
             print('Caught exception "{}" '.format(ex))
+    vtf_lib.image_destroy()
 
 
 
@@ -81,7 +82,9 @@ def export_texture(blender_texture,path):
     image_data = vtf_lib.flip_image_external(image_data,w,h)
     vtf_lib.image_create_single(w, h, image_data, def_options)
     vtf_lib.image_save(path)
+    vtf_lib.image_destroy()
 
 
 if __name__ == '__main__':
-    import_texture(r'E:\PYTHON_STUFF\SourceVTF\test_data\alpha2.vtf')
+    import_texture(r'E:\PYTHON_STUFF\SourceVTF\test_data\alpha.vtf')
+    import_texture(r'E:\PYTHON_STUFF\SourceVTF\test_data\alpha.vtf')
