@@ -72,9 +72,10 @@ def import_texture(path, load_alpha=True, alpha_only=False):
 def export_texture(blender_texture, path):
     image_data = np.array(blender_texture.pixels, np.float16) * 255
     image_data = image_data.astype(np.uint8, copy=False)
-    def_options = vtf_lib.image_create_default_create_structure()
+    def_options = vtf_lib.create_default_params_structure()
     def_options.ImageFormat = VTFLibEnums.ImageFormat.ImageFormatRGBA8888
     def_options.Flags |= VTFLibEnums.ImageFlag.ImageFlagEightBitAlpha
+    def_options.Resize = 1
     w, h = blender_texture.size
     image_data = create_string_buffer(image_data.tobytes())
     image_data = vtf_lib.flip_image_external(image_data, w, h)

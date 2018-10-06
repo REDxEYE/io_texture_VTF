@@ -140,7 +140,7 @@ class VTFLib:
     ImageCreateDefaultCreateStructure.argtypes = [POINTER(VTFLibStructures.CreateOptions)]
     ImageCreateDefaultCreateStructure.restype = None
 
-    def image_create_default_create_structure(self):
+    def create_default_params_structure(self):
         create_oprions = VTFLibStructures.CreateOptions()
         self.ImageCreateDefaultCreateStructure(byref(create_oprions))
         return create_oprions
@@ -157,7 +157,6 @@ class VTFLib:
     ImageCreateSingle.argtypes = [c_int32, c_int32, POINTER(c_byte), POINTER(VTFLibStructures.CreateOptions)]
     ImageCreateSingle.restype = c_bool
 
-    # vlImageCreateSingle(vlUInt uiWidth, vlUInt uiHeight, vlByte *lpImageDataRGBA8888, SVTFCreateOptions *VTFCreateOptions);
     def image_create_single(self, width, height, image_data, options):
         image_data = cast(image_data,POINTER(c_byte))
         return self.ImageCreateSingle(width, height, image_data, options)
@@ -181,8 +180,6 @@ class VTFLib:
     ImageLoad.restype = c_bool
 
     def image_load(self, filename, header_only=False):
-        # str_buff = cast(filename,c_char_p)
-        # print(str_buff.value)
         return self.ImageLoad(create_string_buffer(filename.encode('ascii')), header_only)
 
     ImageSave = dll.vlImageSave
@@ -294,16 +291,6 @@ class VTFLib:
 
         return pointer_to_array(self.convert_to_rgba8888(), size)
 
-    def get_as_float(self):
-        new_size = self.compute_image_size(self.width(), self.height(), self.depth(), self.mipmap_count(),
-                                           VTFLibEnums.ImageFormat.ImageFormatRGBA16161616)
-        new_buffer = cast((c_byte * new_size)(), POINTER(c_byte))
-        if not self.ImageConvert(self.ImageGetData(0, 0, 0, 0), new_buffer, self.width(), self.height(),
-                                 self.image_format().value, VTFLibEnums.ImageFormat.ImageFormatRGBA16161616):
-            return pointer_to_array(new_buffer, new_size, c_ubyte).contents
-        else:
-            sys.stderr.write('CAN\'T CONVERT IMAGE\n')
-            return 0
 
     ImageSetData = dll.vlImageSetData
     ImageSetData.argtypes = [c_uint32, c_uint32, c_uint32, c_uint32, POINTER(c_byte)]
@@ -428,11 +415,11 @@ class VTFLib:
                                        VTFLibEnums.ImageFormat.ImageFormatRGBA8888)
 
         return pointer_to_array(image_data, size)
+
     def flip_image_external(self, image_data,width=None,height=None):
         width = width or self.width()
         height = height or self.height()
         image_data_p = cast(image_data, POINTER(c_byte))
-        # image_data_p = byref(image_data)
         self.ImageFlipImage(image_data_p, width, height)
         size = width*height*4
 
@@ -503,7 +490,7 @@ class VTFLib:
 
 if __name__ == '__main__':
     a = VTFLib()
-    print(a.image_create_default_create_structure())
+    print(a.create_default_params_structure())
     # a.image_load(
     #     r"G:\SteamLibrary\SteamApps\common\SourceFilmmaker\game\usermod\materials\models\skuddbutt\mavis\body_clothed.vtf",
     #     False)
