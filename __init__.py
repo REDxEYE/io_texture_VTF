@@ -1,4 +1,4 @@
-
+from pathlib import Path
 
 bl_info = {
     "name": "Source Engine VTF Texture import",
@@ -17,7 +17,7 @@ from . import VTF
 
 import bpy
 
-from bpy.props import StringProperty, BoolProperty
+from bpy.props import StringProperty, BoolProperty,CollectionProperty
 from bpy_extras.io_utils import ExportHelper
 
 import os.path
@@ -34,12 +34,17 @@ class VTFImporter(bpy.types.Operator):
     filepath = StringProperty(
             subtype='FILE_PATH',
             )
+    files = CollectionProperty(name='File paths', type=bpy.types.OperatorFileListElement)
+    
+
     load_alpha = BoolProperty(default=True, name='Load alpha into separate image')
     only_alpha = BoolProperty(default=False, name='Only load alpha')
     filter_glob = StringProperty(default="*.vtf", options={'HIDDEN'})
 
     def execute(self, context):
-        VTF.import_texture(self.filepath,self.load_alpha,self.only_alpha)
+        directory = Path(self.filepath).absolute()
+        for file in self.files:
+            VTF.import_texture(str(directory / file.name),self.load_alpha,self.only_alpha)
         return {'FINISHED'}
 
     def invoke(self, context, event):
