@@ -42,7 +42,7 @@ class VTFImporter(bpy.types.Operator):
     filter_glob = StringProperty(default="*.vtf", options={'HIDDEN'})
 
     def execute(self, context):
-        directory = Path(self.filepath).absolute()
+        directory = Path(self.filepath).parent.absolute()
         for file in self.files:
             VTF.import_texture(str(directory / file.name),self.load_alpha,self.only_alpha)
         return {'FINISHED'}
