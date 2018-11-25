@@ -371,7 +371,7 @@ class P4Change(dict):
 			line = lineIter.next()
 			while not line.startswith( prefix ):
 				idx = line.rfind( '#' )
-				depotFile = path.Path( line[ :idx ] )
+				depotFile = path.ValvePath(line[:idx])
 
 				revAndAct = line[ idx + 1: ].split()
 				rev = int( revAndAct[ 0 ] )
@@ -389,7 +389,7 @@ class P4Change(dict):
 			change.description = 'default'
 			info = p4Info()
 			fileInfo = _p4run( 'opened -u %s -C %s -c default' % (info.userName, info.clientName) )
-			change.files = [ path.Path( f[ :f.find( '#' ) ] ) for f in fileInfo ]
+			change.files = [path.ValvePath(f[:f.find('#')]) for f in fileInfo]
 
 		return change
 	@classmethod
@@ -494,7 +494,7 @@ def lsP4( queryStr, includeDeleted=False ):
 
 		fData = toks[ 0 ]
 		idx = fData.index( '#' )
-		f = path.Path( fData[ :idx ] )
+		f = path.ValvePath(fData[:idx])
 		fDict[ 'depotPath' ] = f
 
 		rev = int( fData[ idx+1: ] )
@@ -521,7 +521,7 @@ def lsP4( queryStr, includeDeleted=False ):
 
 
 def toDepotAndDiskPaths( files ):
-	caseMatters = path.Path.DoesCaseMatter()
+	caseMatters = path.ValvePath.does_case_matter()
 
 	lines = []
 	for filesChunk in iterBy( files, 15 ):
@@ -534,7 +534,7 @@ def toDepotAndDiskPaths( files ):
 			break
 
 		idx = line.find( ' ' )
-		depotFile = path.Path( line[ idx+1: ].strip() )
+		depotFile = path.ValvePath(line[idx + 1:].strip())
 
 		#get the client mapped file - and throw it away
 		line = lineIter.next()
@@ -547,7 +547,7 @@ def toDepotAndDiskPaths( files ):
 			break
 
 		idx = line.find( ' ' )
-		filepath = path.Path( line[ idx+1: ].strip() )
+		filepath = path.ValvePath(line[idx + 1:].strip())
 
 		paths.append( (depotFile, filepath) )
 
@@ -641,7 +641,7 @@ def syncFiles( files, force=False, rev=None, change=None ):
 
 def findStaleFiles( fileList ):
 	'''
-	given a list of files (can be string paths or Path instances) returns a list of "stale" files.  stale files are simply
+	given a list of files (can be string paths or ValvePath instances) returns a list of "stale" files.  stale files are simply
 	files that aren't at head revision
 	'''
 	p4 = path.P4File()
@@ -665,7 +665,7 @@ def gatherFilesIntoChange( files, change=None ):
 	p4 = path.P4File()
 	filesGathered = []
 	for f in files:
-		if not isinstance( f, Path ): f = path.Path( f )
+		if not isinstance(f, ValvePath): f = path.ValvePath(f)
 
 		try:
 			stat = p4.getStatus( f )
@@ -718,7 +718,7 @@ def findRedundantPYCs( rootDir=None, recursive=True ):
 	bytecodeExtensions = [ 'pyc', 'pyo' ]
 	exceptions = [ 'p4' ]
 
-	rootDir = path.Path( rootDir )
+	rootDir = path.ValvePath(rootDir)
 	orphans = []
 	if rootDir.exists:
 		p4 = path.P4File()
@@ -726,14 +726,14 @@ def findRedundantPYCs( rootDir=None, recursive=True ):
 		bytecodeFiles = []
 		for f in files:
 			for byteXtn in bytecodeExtensions:
-				if f.hasExtension( byteXtn ):
+				if f.has_extension(byteXtn):
 					if f.name().lower() in exceptions:
 						continue
 
 					bytecodeFiles.append( f )
 
 		for f in bytecodeFiles:
-			pyF = path.Path( f ).setExtension( 'py' )
+			pyF = path.ValvePath(f).set_extension('py')
 
 			#is there a corresponding py script for this file?  if it does, the pyc is safe to delete - so delete it
 			if pyF.exists:

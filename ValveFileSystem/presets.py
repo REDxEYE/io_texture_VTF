@@ -1,6 +1,6 @@
 import os
 
-from .path import Path, PathError, P4File
+from .path import ValvePath, PathError, P4File
 from .valve import gameInfo, game
 from .misc import removeDupes
 import datetime
@@ -9,12 +9,12 @@ LOCALES = LOCAL, GLOBAL = 'local', 'global'
 DEFAULT_XTN = 'preset'
 
 # define where the base directories are for presets
-kLOCAL_BASE_DIR = Path('%HOME%/presets/')
+kLOCAL_BASE_DIR = ValvePath('%HOME%/presets/')
 try:
     kGLOBAL_BASE_DIR = game() / 'sdktools/presets'
 except (PathError, KeyError):
     # If game can't be found, just guess from the script location
-    kGLOBAL_BASE_DIR = Path(__file__).up(6) / 'sdktools/presets'
+    kGLOBAL_BASE_DIR = ValvePath(__file__).up(6) / 'sdktools/presets'
 
 
 class PresetException(Exception):
@@ -29,7 +29,7 @@ def getPresetDirs(locale, tool):
     global kLOCAL_BASE_DIR, kGLOBAL_BASE_DIR
 
     dirs = []
-    mods = gameInfo.getSearchMods()
+    mods = gameInfo.get_search_mods()
     if locale == LOCAL:
         for mod in mods:
             localDir = kLOCAL_BASE_DIR / mod / tool
@@ -48,7 +48,7 @@ def getPresetDirs(locale, tool):
 
 def presetPath(locale, tool, presetName, ext=DEFAULT_XTN):
     preset = getPresetDirs(locale, tool)[0] + scrubName(presetName, exceptions='./')
-    preset = preset.setExtension(ext)
+    preset = preset.set_extension(ext)
 
     return preset
 
@@ -100,7 +100,7 @@ def listPresets(locale, tool, ext=DEFAULT_XTN):
         if d.exists:
             for f in d.files():
                 if f.name() in alreadyAdded: continue
-                if f.hasExtension(ext):
+                if f.has_extension(ext):
                     files.append(f)
                     alreadyAdded.add(f.name())
 
@@ -114,7 +114,7 @@ def listPresets(locale, tool, ext=DEFAULT_XTN):
 def listAllPresets(tool, ext=DEFAULT_XTN, localTakesPrecedence=False):
     '''
     lists all presets for a given tool and returns a dict with local and global keys.  the dict
-    values are lists of Path instances to the preset files, and are unique - so a preset in the
+    values are lists of ValvePath instances to the preset files, and are unique - so a preset in the
     global list will not appear in the local list by default.  if localTakesPrecedence is True,
     then this behaviour is reversed, and locals will trump global presets of the same name
     '''
@@ -170,11 +170,11 @@ def findPreset(presetName, tool, ext=DEFAULT_XTN, startLocale=LOCAL):
 
 def dataFromPresetPath(path):
     '''
-    returns a tuple containing the locale, tool, name, extension for a given Path instance.  a PresetException
+    returns a tuple containing the locale, tool, name, extension for a given ValvePath instance.  a PresetException
     is raised if the path given isn't an actual preset path
     '''
     locale, tool, name, ext = None, None, None, None
-    pathCopy = Path(path)
+    pathCopy = ValvePath(path)
     if pathCopy.isUnder(kGLOBAL_BASE_DIR):
         locale = GLOBAL
         pathCopy -= kGLOBAL_BASE_DIR
@@ -185,7 +185,7 @@ def dataFromPresetPath(path):
         raise PresetException("%s isn't under the local or the global preset dir" % path)
 
     tool = pathCopy[-2]
-    ext = pathCopy.getExtension()
+    ext = pathCopy.set_extension()
     name = pathCopy.name()
 
     return locale, tool, name, ext
@@ -263,7 +263,7 @@ class PresetManager(object):
         return listAllPresets(self.tool, self.extension, localTakesPrecedence)
 
 
-class Preset(Path):
+class Preset(ValvePath):
     '''
     provides a convenient way to write/read and otherwise handle preset files
     '''
@@ -279,7 +279,7 @@ class Preset(Path):
         if path is None:
             path = presetPath(locale, tool, name, ext)
 
-        return Path.__new__(cls, path)
+        return ValvePath.__new__(cls, path)
 
     def __init__(self, locale, tool, name, ext=DEFAULT_XTN):
         self.locale = locale
@@ -292,7 +292,7 @@ class Preset(Path):
     FromPreset = FromFile
 
     def up(self, levels=1):
-        return Path(self).up(levels)
+        return ValvePath(self).up(levels)
 
     def other(self):
         '''
@@ -326,7 +326,7 @@ class Preset(Path):
             else:
                 addToP4 = True
 
-        Path.copy(self, dest)
+        ValvePath.copy(self, dest)
         if addToP4:
             # now if we're adding to p4 - we need to know if the preset is a pickled preset - if it is, we need
             # to make sure we add it as a binary file, otherwise p4 assumes text, which screws up the file
@@ -367,9 +367,9 @@ class Preset(Path):
         if not newName.endswith(self.extension):
             newName = '%s.%s' % (newName, self.extension)
 
-        return Path.rename(self, newName, True)
+        return ValvePath.rename(self, newName, True)
 
     def getName(self):
-        return Path(self).setExtension()[-1]
+        return ValvePath(self).set_extension()[-1]
 
 # end

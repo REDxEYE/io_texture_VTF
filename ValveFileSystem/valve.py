@@ -1,15 +1,11 @@
-########### VALVE FILESYSTEM INTEGRATION ###########
-try:
-    from .path import Path, PathError
-except:
-    from .path import Path, PathError
-
+#         VALVE FILESYSTEM INTEGRATION
 import os
-import sys
 import re
 import shlex
+import sys
+from pathlib import Path
 
-### Platform
+# Platform
 WIN_32_SUFFIX = 'win32'
 WIN_64_SUFFIX = 'win64'
 
@@ -27,12 +23,12 @@ _MOD = None
 
 
 def mod():
-    '''
+    """
     returns the mod name of the current project
-    '''
+    """
     global _MOD
     try:
-        _MOD = Path(os.environ['VPROJECT']).name()
+        _MOD = Path(os.environ['VPROJECT']).name
         return _MOD
     except KeyError:
         raise KeyError('%VPROJECT% not defined')
@@ -42,35 +38,35 @@ _GAME = None
 
 
 def game():
-    '''
-    returns a Path instance representing the %VGAME% path - path construction this way is super easy:
+    """
+    returns a ValvePath instance representing the %VGAME% path - path construction this way is super easy:
     somePropPath = game() / mod() / 'models/props/some_prop.dmx'
-    '''
+    """
     global _GAME
     try:
-        _GAME = Path.Join(os.environ['VPROJECT'], '..')
+        _GAME = Path(os.environ['VPROJECT']) / '..'
         return _GAME
     except KeyError:
         raise KeyError('%VPROJECT% not defined.')
-    except PathError:
-        raise PathError('%VPROJECT% is defined with an invalid path.')
+    except Exception:
+        raise Exception('%VPROJECT% is defined with an invalid path.')
 
 
 _CONTENT = None
 
 
 def content():
-    '''
-    returns a Path instance representing the %VCONTENT% path - path construction this way is super easy:
+    """
+    returns a ValvePath instance representing the %VCONTENT% path - path construction this way is super easy:
     somePropPath = content() / 'ep3/models/characters/alyx/maya/alyx_model.ma'
-    '''
+    """
     global _CONTENT
 
     try:
         return Path(os.environ['VCONTENT'])
     except KeyError:
         try:
-            _CONTENT = Path.Join(os.environ['VPROJECT'], '../../content')
+            _CONTENT = Path(os.environ['VPROJECT']) / '../../content'
             return _CONTENT
         except KeyError:
             KeyError('%VPROJECT% not defined')
@@ -80,10 +76,10 @@ _PROJECT = None
 
 
 def project():
-    '''
-    returns a Path instance representing the %VPROJECT% path - path construction this way is super easy:
+    """
+    returns a ValvePath instance representing the %VPROJECT% path - path construction this way is super easy:
     somePropPath = project() / 'models/props/some_prop.mdl'
-    '''
+    """
     global _PROJECT
     try:
         _PROJECT = Path(os.environ['VPROJECT'])
@@ -96,9 +92,9 @@ _TOOLS = None
 
 
 def tools(engine='Source 2'):
-    '''
+    """
     returns the location of our tools.
-    '''
+    """
     global _TOOLS
 
     if engine == 'Source':
@@ -107,11 +103,11 @@ def tools(engine='Source 2'):
                 _TOOLS = Path(os.environ['VTOOLS'])
             except KeyError:
                 try:
-                    _TOOLS = Path.Join(os.environ['VGAME'], '/../../tools')
+                    _TOOLS = Path(os.environ['VGAME']) / '/../../tools'
 
                 except KeyError:
                     try:
-                        _TOOLS = Path.Join(os.environ['VPROJECT'], '/../../../tools')
+                        _TOOLS = Path(os.environ['VPROJECT']) / '/../../../tools'
                     except KeyError:
                         raise KeyError('%VGAME% or %VPROJECT% not defined - cannot determine tools path')
     else:
@@ -120,10 +116,10 @@ def tools(engine='Source 2'):
                 _TOOLS = Path(os.environ['VTOOLS'])
             except KeyError:
                 try:
-                    _TOOLS = Path.Join(os.environ['VGAME'], '/sdktools')
+                    _TOOLS = Path(os.environ['VGAME']) / '/sdktools'
                 except KeyError:
                     try:
-                        _TOOLS = Path.Join(os.environ['VPROJECT'], '../sdktools')
+                        _TOOLS = Path(os.environ['VPROJECT']) / '../sdktools'
                     except KeyError:
                         raise KeyError('%VGAME% or %VPROJECT% not defined - cannot determine tools path')
 
@@ -134,9 +130,9 @@ _PLATFORM = WIN_32_SUFFIX
 
 
 def platform():
-    '''
+    """
     Returns the platform of the current environment, defaults to win32
-    '''
+    """
     global _PLATFORM
 
     try:
@@ -147,15 +143,15 @@ def platform():
             bin64Dir = r'{0}\bin\{1}'.format(os.environ['VGAME'], WIN_64_SUFFIX)
             if bin64Dir in os.environ['PATH']:
                 _PLATFORM = WIN_64_SUFFIX
-        except (KeyError, PathError):
+        except (KeyError, Exception):
             pass
     return _PLATFORM
 
 
 def addon():
-    '''
+    """
     Returns the addon of the current environment or None if no addon is set
-    '''
+    """
     try:
         sAddon = os.environ['VADDON']
         return sAddon
@@ -163,41 +159,41 @@ def addon():
         return None
 
 
-def iterContentDirectories():
+def iter_content_directories():
     for m in gameInfo.getSearchMods():
         yield content() / m
 
 
-def iterGameDirectories():
+def iter_game_directories():
     for m in gameInfo.getSearchMods():
         yield game() / m
 
 
-def getAddonFromFullPath(sFullPath):
-    '''
+def get_addon_from_full_path(sFullPath):
+    """
     Returns the name of the addon determined by examining the specified path
     Returns None if the specified file is not under an addon for the current
     game()/content() tree, calls getModAndAddonTupleFromFullPath() and returns
     2nd component
-    '''
+    """
     fullPath = Path(sFullPath)
     return fullPath.addonName
 
 
 def setAddonFromFullPath(sFullPath):
-    '''
+    """
     Sets the addon from the specified path
-    '''
+    """
     fullPath = Path(sFullPath)
     setAddon(fullPath.addonName)
 
 
 def resolveValvePath(valvePath, basePath=content()):
-    '''
-    A "Valve Path" is one that is relative to a mod - in either the game or content tree.
+    """
+    A "Valve ValvePath" is one that is relative to a mod - in either the game or content tree.
 
     Ie: if you have a project with the content dir: d:/content and the game dir: d:/game
-    a "Valve Path" looks like this:  models/awesomeProps/coolThing.vmdl
+    a "Valve ValvePath" looks like this:  models/awesomeProps/coolThing.vmdl
 
     To resolve this path one must look under each mod the current project inherits from.
     So a project "test" which inherits from "another" would result in the following searches:
@@ -207,7 +203,7 @@ def resolveValvePath(valvePath, basePath=content()):
     Similarly for the game tree.
 
     If the path cannot be resolved to a real file, None is returned.
-    '''
+    """
     for mod in gameInfo.getSearchMods():
         p = basePath / mod / valvePath
         if p.exists:
@@ -218,12 +214,12 @@ def resolveValvePath(valvePath, basePath=content()):
 ##
 ##-----------------------------------------------------------------------------
 def FullPathToRelativePath(path, basePath=content()):
-    '''
+    """
     Converts a full path to a relative path based on the current gameinfo and the
     specified base directory.  Directory defaults to content, call with game() to
     search the game directory.  If the path cannot be converted to a relative path
     it's returned exactly as it was passed in, otherwise the relative path is returned
-    '''
+    """
 
     sFullPath = os.path.normpath(str(path))
     sBasePath = os.path.normpath(str(basePath))
@@ -246,13 +242,13 @@ def FullPathToRelativePath(path, basePath=content()):
 ##
 ##-----------------------------------------------------------------------------
 def RelativePathToFullPath(path, basePath=content(), exist=True, includeAddons=None):
-    '''
+    """
     Converts a relative path to a full path based on the current gameinfo and
     specified base directory.  If exist is True then the file must already exist
     and if it cannot be found, nothing is returned.  if exist is False any file
     that matches on the search path will be preferentially returned but if not
     a path based on the current mod will be returned
-    '''
+    """
 
     sRelPath = os.path.normpath(str(path))
     sBasePath = os.path.normpath(str(basePath))
@@ -283,24 +279,24 @@ def FixSlashes(path, pathSep='/'):
 
 
 def encode_quotes(string):
-    '''
+    """
     Return a string with single and double quotes escaped, keyvalues style
-    '''
+    """
     return string.replace('"', '\\"').replace("'", "\\'")
 
 
 def decode_quotes(string):
-    '''
+    """
     Return a string with escaped single and double quotes without escape characters.
-    '''
+    """
     return string.replace('\\"', '"').replace("\\'", "'")
 
 
 def setMod(newMod):
-    '''
+    """
     sets the current mod to something else.  makes sure to update VPROJECT, VMOD and re-parses global gameInfo for
     the new mod so that calls to gamePath and contentPath return correctly
-    '''
+    """
     global gameInfo
     os.environ['VMOD'] = str(newMod)
     os.environ['VPROJECT'] = (game() / newMod).asNative()
@@ -308,10 +304,10 @@ def setMod(newMod):
 
 
 def setAddon(newAddon):
-    '''
+    """
     sets the current addon to something else.  Mod needs to be set ahead of time
     Pass None or the empty string to unset the current addon
-    '''
+    """
     if newAddon:
         os.environ['VADDON'] = str(newAddon)
     elif 'VADDON' in os.environ:
@@ -319,10 +315,10 @@ def setAddon(newAddon):
 
 
 def reportUsageToAuthor(author=None, payloadCB=None):
-    '''
+    """
     when called, this method will fire of a useage report email to whoever has marked themselves as the __author__ of the tool
     the call was made from.  if no author is found then an email is sent to the DEFAULT_AUTHOR
-    '''
+    """
     # additionalMsg = ''
     # try:
     # additionalMsg = payloadCB()
@@ -340,7 +336,7 @@ def reportUsageToAuthor(author=None, payloadCB=None):
     ##in this case, walk up the caller tree and find the top most __author__ variable definition
     # for frameInfo in frameInfos:
     # frame = frameInfo[0]
-    # dataToSend.append( '%s:  %s' % (Path( frameInfo[1] ) - '%VTOOLS%', frameInfo[3]) )
+    # dataToSend.append( '%s:  %s' % (ValvePath( frameInfo[1] ) - '%VTOOLS%', frameInfo[3]) )
 
     # if author is None:
     # try:
@@ -353,7 +349,7 @@ def reportUsageToAuthor(author=None, payloadCB=None):
 
     # import smtplib
     # envDump = '\ncontent: %s\nproject: %s\n' % (content(), project())
-    # subject = '[using] %s' % str( Path( frameInfos[1][1] ).name() )
+    # subject = '[using] %s' % str( ValvePath( frameInfos[1][1] ).name() )
     # msg = u'Subject: %s\n\n%s\n\n%s\n\n%s' % (subject, '\n'.join( map(str, dataToSend) ), envDump, additionalMsg)
 
     # def sendMail():
@@ -371,55 +367,55 @@ def reportUsageToAuthor(author=None, payloadCB=None):
 
 
 def asRelative(filepath):
-    '''
-    '''
+    """
+    """
     return str(Path(filepath).asRelative())
 
 
 def contentModRelativePath(filepath):
-    '''
+    """
     Returns a path instance that is relative to the mod if the path is under the content tree
-    '''
+    """
     return filepath.asContentModRelative()
 
 
 def addonRelativeContentPath(filepath):
-    '''
+    """
     Returns a path instance that is relative to the addon if the path is under the content tree
-    '''
+    """
     # Make sure the path starts with content before stripping it away
     return filepath.asAddonRelativeContentPath()
 
 
 def contentModRelativePathFuzzy(filepath):
-    '''
+    """
     returns a path instance that is relative to the mod if the path is under the content tree
     if an automatic match cannot be found, look for the content and mod strings using gameinfo file.
-    '''
+    """
     return filepath.asContentModRelativePathFuzzy()
 
 
 def projectRelativePath(filepath):
-    '''
+    """
     returns a path instance that is relative to vproject().  this method is provided purely for symmetry - its pretty trivial
-    '''
+    """
     return filepath - project()
 
 
 def makeSourceAbsolutePath(filepath):
-    '''
-    Returns a Path instance as a "source" relative filepath.
+    """
+    Returns a ValvePath instance as a "source" relative filepath.
     If the filepath doesn't exist under the project tree, the original filepath is returned.
-    '''
+    """
     return filepath.asModRelative()
 
 
 def makeSource1TexturePath(filepath):
-    '''
+    """
     returns the path as if it were a source1 texture/material path - ie the path is relative to the
     materials, or materialsrc directory.  if the materials or materialsrc directory can't be found
     in the path, the original path is returned
-    '''
+    """
     if not isinstance(filepath, Path):
         filepath = Path(filepath)
 
@@ -440,9 +436,9 @@ _VALIDATE_LOCATION_IMPORT_HOOK = None
 
 
 def EnableValidDependencyCheck():
-    '''
+    """
     sets up an import hook that ensures all imported modules live under the game directory
-    '''
+    """
     global _VALIDATE_LOCATION_IMPORT_HOOK
 
     validPaths = [game()]
@@ -475,9 +471,9 @@ def EnableValidDependencyCheck():
 
 
 def DisableValidDependencyCheck():
-    '''
+    """
     disables the location validation import hook
-    '''
+    """
     global _VALIDATE_LOCATION_IMPORT_HOOK
 
     if _VALIDATE_LOCATION_IMPORT_HOOK is None:
@@ -498,9 +494,9 @@ except KeyError:
 ########### VALVE KEYVALUES PARSER ###########
 
 def removeLineComments(lines):
-    '''
+    """
     removes all line comments from a list of lines
-    '''
+    """
     newLines = []
     for line in lines:
         commentStart = line.find('//')
@@ -515,9 +511,9 @@ def removeLineComments(lines):
 
 
 def removeBlockComments(lines):
-    '''
+    """
     removes all block comments from a list of lines
-    '''
+    """
     newLines = []
     end = len(lines)
     n = 0
@@ -545,9 +541,9 @@ def removeBlockComments(lines):
 
 
 def stripcomments(lines):
-    '''
+    """
     Strips all C++ style block and line comments from a list of lines using RegEx
-    '''
+    """
 
     def replacer(match):
         s = match.group(0)
@@ -569,10 +565,10 @@ def stripcomments(lines):
 
 
 class Chunk(object):
-    '''
+    """
     a chunk creates a reasonably convenient way to hold and access key value pairs, as well as a way to access
     a chunk's parent.  the value attribute can contain either a string or a list containing other Chunk instances
-    '''
+    """
 
     def __init__(self, key, value=None, parent=None, append=False, quoteCompoundKeys=True):
         self.key = key
@@ -614,7 +610,7 @@ class Chunk(object):
         if self.quoteCompoundKeys:
             compoundLine = '{0}"{1}"\n'
 
-        if isinstance(self.value, list) and not isinstance(self.value[0],int):
+        if isinstance(self.value, list) and not isinstance(self.value[0], int):
             strLines.append(compoundLine.format('\t' * depth, self.key))
             strLines.append('\t' * depth + '{\n')
             for val in self.value: strLines.append(val.__repr__(depth + 1))
@@ -632,12 +628,12 @@ class Chunk(object):
         return id(self)
 
     def iterChildren(self):
-        '''
-        '''
+        """
+        """
         if self.hasLen:
             for chunk in self:
                 if chunk.hasLen:
-                    for subChunk in chunk.iterChildren():
+                    for subChunk in chunk.iter_children():
                         yield subChunk
                 else:
                     yield chunk
@@ -646,14 +642,14 @@ class Chunk(object):
         if isinstance(self.value, list):
             parentDict[self.key] = subDict = {}
             for c in self.value:
-                c.asDict(subDict)
+                c.as_dict(subDict)
         else:
             parentDict[self.key] = self.value
 
     def append(self, new):
-        '''
+        """
         Append a chunk to the end of the list.
-        '''
+        """
         if not isinstance(self.value, list):
             self.value = []
 
@@ -663,9 +659,9 @@ class Chunk(object):
         new.parent = self
 
     def insert(self, index, new):
-        '''
+        """
         Insert a new chunk at a particular index.
-        '''
+        """
         if not isinstance(self.value, list):
             self.value = []
 
@@ -675,52 +671,52 @@ class Chunk(object):
         new.parent = self
 
     def remove(self, chunk):
-        '''
+        """
         Remove given chunk from this chunk.
-        '''
+        """
         for c in self.value:
             if c == chunk:
                 self.value.remove(c)
                 return
 
     def removeByKey(self, key):
-        '''
+        """
         Remove any chunks with the given key from this chunk. Does not recursively search all children.
-        '''
+        """
         for c in self.value:
             if c.key == key:
                 self.value.remove(c)
 
     def findKey(self, key):
-        '''
+        """
         recursively searches this chunk and its children and returns a list of chunks with the given key
-        '''
+        """
         matches = []
         if self.key == key:
             matches.append(self)
         if self.hasLen:
             for val in self.value:
-                matches.extend(val.findKey(key))
+                matches.extend(val.find_key(key))
 
         return matches
 
     def findValue(self, value):
-        '''
+        """
         recursively searches this chunk and its children and returns a list of chunks with the given value
-        '''
+        """
         matches = []
         if self.hasLen:
             for val in self.value:
-                matches.extend(val.findValue(value))
+                matches.extend(val.find_value(value))
         elif self.value == value:
             matches.append(self)
 
         return matches
 
     def findKeyValue(self, key, value, recursive=True):
-        '''
+        """
         recursively searches this chunk and its children and returns a list of chunks with the given key AND value
-        '''
+        """
         keyLower = key.lower()
 
         matches = []
@@ -730,7 +726,7 @@ class Chunk(object):
                     matches.append(val)
 
                 if recursive:
-                    matches.extend(val.findKeyValue(key, value))
+                    matches.extend(val.find_key_value(key, value))
 
         return matches
 
@@ -738,7 +734,7 @@ class Chunk(object):
         matches = []
         if self.hasLen:
             for val in self.value:
-                matches.extend(val.testOnValues(valueTest))
+                matches.extend(val.test_on_values(valueTest))
         elif valueTest(self.value):
             matches.append(self)
 
@@ -757,9 +753,9 @@ class Chunk(object):
         return attr in attrs
 
     def getFileObject(self):
-        '''
+        """
         walks up the chunk hierarchy to find the top chunk
-        '''
+        """
         parent = self.parent
         lastParent = parent
         safety = 1000
@@ -771,9 +767,9 @@ class Chunk(object):
         return lastParent
 
     def duplicate(self, skipNullChunks=False):
-        '''
+        """
         makes a deep copy of this chunk
-        '''
+        """
         chunkType = type(self)
 
         def copyChunk(chunk):
@@ -794,9 +790,9 @@ class Chunk(object):
         return copyChunk(self)
 
     def delete(self):
-        '''
+        """
         deletes this chunk
-        '''
+        """
         parentChunk = self.parent
         if parentChunk:
 
@@ -811,9 +807,9 @@ class Chunk(object):
 
 
 def parseLine(line):
-    '''
+    """
     Line parser that extracts key value pairs from a line and returns a list of the tokens with escaped quotes.
-    '''
+    """
     # Fix any trailing slashes that are escaping quotes
     if line.endswith('\\"'):
         l = line.rsplit('\\"', 1)
@@ -836,23 +832,24 @@ def parseLine(line):
         # Multiple value tokens, invalid
         raise TypeError
     vals = toks[1].split(" ")
-    if vals and len(vals)>1:
+    if vals and len(vals) > 1:
         a = [val.isnumeric() for val in vals]
         if all(a):
-            toks[1] = list(map(int,vals))
+            toks[1] = list(map(int, vals))
     return toks
 
 
 class KeyValueFile(object):
-    '''
+    """
     A class for working with KeyValues2 format files.
     self.data contains a list which holds all the top level Chunk objects
-    '''
+    """
 
-    def __init__(self, filepath=None, lineParser=parseLine, chunkClass=Chunk, readCallback=None, supportsComments=True,initial_data = None,string_buffer = None):
-        '''
-        lineParser needs to return key,value
-        '''
+    def __init__(self, filepath=None, lineParser=parseLine, chunkClass=Chunk, readCallback=None, supportsComments=True,
+                 initial_data=None, string_buffer=None):
+        """
+        line_parser needs to return key,value
+        """
         self.filepath = Path(filepath)
         self.data = self.value = []
         if initial_data is not None:
@@ -894,17 +891,17 @@ class KeyValueFile(object):
         return self._filepath
 
     def setFilepath(self, newFilepath):
-        '''
-        this wrapper is here so to ensure the _filepath attribute is a Path instance
-        '''
+        """
+        this wrapper is here so to ensure the _filepath attribute is a ValvePath instance
+        """
         self._filepath = Path(newFilepath)
 
     filepath = property(getFilepath, setFilepath)
 
     def read(self, filepath=None):
-        '''
-        reads the actual file, and passes the data read over to the parseLines method
-        '''
+        """
+        reads the actual file, and passes the data read over to the parse_lines method
+        """
         if filepath == None:
             filepath = self.filepath
         else:
@@ -913,10 +910,10 @@ class KeyValueFile(object):
         self.parseLines(filepath.read())
 
     def parseLines(self, lines):
-        '''
-        this method does the actual parsing/data creation.  deals with comments, passing off data to the lineParser,
+        """
+        this method does the actual parsing/data creation.  deals with comments, passing off data to the line_parser,
         firing off the read callback, all that juicy stuff...
-        '''
+        """
         lines = [l.strip() for l in lines]
 
         # remove comments
@@ -933,8 +930,8 @@ class KeyValueFile(object):
         callback = self.callback
         lineParser = self.lineParser
         n = 0
-        for n,line in enumerate(lines):
-            # run the callback - if there are any problems, replace the callback with the nullCallback
+        for n, line in enumerate(lines):
+            # run the callback - if there are any problems, replace the callback with the null_callback
             try:
                 callback(n, numLines)
             except:
@@ -961,10 +958,10 @@ class KeyValueFile(object):
             n += 1
 
     def __getitem__(self, *args):
-        '''
+        """
         provides an index based way of accessing file data - self[0,1,2] accesses the third child of
         the second child of the first root element in self
-        '''
+        """
         args = args[0]
         if not isinstance(args, tuple):
             data = self.data[args]
@@ -977,16 +974,16 @@ class KeyValueFile(object):
         return data
 
     def __len__(self):
-        '''
+        """
         lists the number of root elements in the file
-        '''
+        """
         return len(self.data)
 
     def __repr__(self):
-        '''
+        """
         this string representation of the file is almost identical to the formatting of a vmf file written
         directly out of hammer
-        '''
+        """
         strList = []
         for chunk in self.data:
             a = str(chunk)
@@ -998,8 +995,8 @@ class KeyValueFile(object):
     serialize = __repr__
 
     def unserialize(self, theString):
-        '''
-        '''
+        """
+        """
         theStringLines = theString.split('\n')
         self.parseLines(theStringLines)
 
@@ -1012,68 +1009,68 @@ class KeyValueFile(object):
             return False
 
     def asDict(self):
-        '''
+        """
         returns a dictionary representing the key value file - this isn't always possible as it is valid for
         a keyValueFile to have mutiple keys with the same key name within the same level - which obviously
         isn't possible with a dictionary - so beware!
-        '''
+        """
         asDict = {}
         for chunk in self.data:
-            chunk.asDict(asDict)
+            chunk.as_dict(asDict)
 
         return asDict
 
     def append(self, chunk):
-        '''
+        """
         appends data to the root level of this file - provided to make the vmf file object appear
         more like a chunk object
-        '''
+        """
         self.data.append(chunk)
 
     def findKey(self, key):
-        '''
+        """
         returns a list of all chunks that contain the exact key given
         :rtype: List[Chunk]
-        '''
+        """
         matches = []
         for item in self.data:
-            matches.extend(item.findKey(key))
+            matches.extend(item.find_key(key))
 
         return matches
 
     def hasKey(self, key):
-        '''
+        """
         returns true if the exact named key exists
-        '''
+        """
         for item in self.data:
-            if item.hasAttr(key):
+            if item.has_attr(key):
                 return True
         return False
 
     def findValue(self, value):
-        '''
+        """
         returns a list of all chunks that contain the exact value given
-        '''
+        """
         matches = []
         for item in self.data:
-            matches.extend(item.findValue(value))
+            matches.extend(item.find_value(value))
 
         return matches
 
     def findKeyValue(self, key, value):
-        '''
+        """
         returns a list of all chunks that have the exact key and value given
-        '''
+        """
         matches = []
         for item in self.data:
-            matches.extend(item.findKeyValue(key, value))
+            matches.extend(item.find_key_value(key, value))
 
         return matches
 
     def getRootChunk(self):
-        '''
+        """
         Return the base chunk for the file.
-        '''
+        """
         try:
             return self.value[0]
         except IndexError:
@@ -1082,22 +1079,22 @@ class KeyValueFile(object):
     rootChunk = property(getRootChunk, doc="The base chunk for the file.")
 
     def testOnValues(self, valueTest):
-        '''
+        """
         returns a list of chunks that return true to the method given - the method should take as its
         first argument the value of the chunk it is testing against.  can be useful for finding values
         containing substrings, or all compound chunks etc...
-        '''
+        """
         matches = []
         for item in self.data:
-            matches.extend(item.testOnValues(valueTest))
+            matches.extend(item.test_on_values(valueTest))
 
         return matches
 
     def write(self, filepath=None, doP4=True):
-        '''
+        """
         writes the instance back to disk - optionally to a different location from that which it was
         loaded.  NOTE: deals with perforce should the file be managed by p4
-        '''
+        """
         if filepath is None:
             filepath = self.filepath
         else:
@@ -1110,11 +1107,11 @@ class KeyValueFile(object):
 
 
 class GameInfoFile(KeyValueFile):
-    '''
+    """
     Provides an interface to gameinfo relevant operations - querying search paths, game root, game title etc...
     Passing startEmpty=True creates an empty object. Otherwise the current VPROJECT will be used to fetch the gameinfo.
     The parselines method can be passed a list of strings to fill an empty GameInfoFile object.
-    '''
+    """
 
     def __init__(self, filepath=None, chunkClass=Chunk, readCallback=None, modname=None, startEmpty=False):
 
@@ -1153,7 +1150,7 @@ class GameInfoFile(KeyValueFile):
         return [str(Path.Join('%VPROJECT%/../', modEntry)) for modEntry in self.getSearchMods()]
 
     def getSearchMods(self, includeAddons=None):
-        '''
+        """
         Get a list of mod names listed in the SearchPaths
 
         includeAddons, depending if a global addon is set via the setAddon() function,
@@ -1175,7 +1172,7 @@ class GameInfoFile(KeyValueFile):
          e.g.          | 'foo_addons/bar'  | 'foo_addons/bar'  |                   |
         ---------------+-------------------+-------------------+-------------------+
 
-        '''
+        """
         # always has the base mod in it...
         searchMods = [self.modname]
         # See if a global addon is set
@@ -1207,9 +1204,9 @@ class GameInfoFile(KeyValueFile):
         return searchMods
 
     def getAddonRoots(self):
-        '''
+        """
         Return a list of addon root names in the SearchPaths
-        '''
+        """
         addonNames = []
         for chunk in self.FileSystem.SearchPaths:
             if 'addonroot' in chunk.key.lower():
@@ -1295,16 +1292,16 @@ class GameInfoFile(KeyValueFile):
     pythonDir = property(__get_PythonDir)
 
     def writeDefaultFile(self):
-        '''
+        """
         Creates a default GameInfo file with basic structure
-        '''
+        """
         self.filepath.write('''"GameInfo"\n{\n\tgame "tmp"\n\tFileSystem\n\t{\n\t\tSearchPaths\n'+
 		'\t\t{\n\t\t\tGame |gameinfo_path|.\n\t\t}\n\t}\n}''')
 
     def simpleValidate(self):
-        '''
+        """
         Checks to see if the file has some basic keyvalues
-        '''
+        """
         try:
             getattr(self[0], 'game')
             getattr(self[0], 'SearchPaths')
@@ -1326,10 +1323,10 @@ class GameInfoException(Exception):
 
 
 def getAddonBasePaths(asContent=False):
-    '''
+    """
     Returns a list of Paths for the addon base directories for the current mod (eg. 'dota_addons')
     Returns content-based Paths instead of game-based Paths if asContent is set to True.
-    '''
+    """
     if asContent:
         basePath = content()
     else:
@@ -1339,10 +1336,10 @@ def getAddonBasePaths(asContent=False):
 
 
 def getAddonPaths(asContent=False):
-    '''
+    """
     Returns a list of addons Paths for the current mod.
     Returns content-based Paths instead of game-based Paths if asContent is set to True.
-    '''
+    """
     addonPaths = []
     for base in getAddonBasePaths(asContent):
         addonPaths.extend(base.dirs())
@@ -1350,17 +1347,17 @@ def getAddonPaths(asContent=False):
 
 
 def getAddonNames():
-    '''
+    """
     Returns a list of addon names for the current mod.
-    '''
+    """
     return [d.addonName for d in getAddonPaths()]
 
 
 def lsGamePath(path, recursive=False):
-    '''
+    """
     lists all files under a given 'valve path' - ie a game or content relative path.  this method needs to iterate
     over all known search mods as defined in a project's gameInfo script
-    '''
+    """
     path = Path(path)
     files = []
 
@@ -1371,9 +1368,9 @@ def lsGamePath(path, recursive=False):
 
 
 def lsContentPath(path, recursive=False):
-    '''
+    """
     similar to lsGamePath except that it lists files under the content tree, not the game tree
-    '''
+    """
     path = Path(path)
     c = content()
     files = []
@@ -1385,7 +1382,7 @@ def lsContentPath(path, recursive=False):
 
 
 def contentPath(modRelativeContentPath):
-    '''allows you do specify a path using mod relative syntax instead of a fullpath
+    """allows you do specify a path using mod relative syntax instead of a fullpath
     example:
        assuming vproject is set to d:/main/game/tf_movies
        contentPath( 'models/player/soldier/parts/maya/soldier_reference.ma' )
@@ -1393,12 +1390,12 @@ def contentPath(modRelativeContentPath):
        returns: d:/main/content/tf/models/player/soldier/parts/maya/soldier_reference.ma
 
     NOTE: None is returned in the file can't be found in the mod hierarchy
-    '''
+    """
     return Path(modRelativeContentPath).expandAsContent(gameInfo)
 
 
 def gamePath(modRelativeContentPath):
-    '''allows you do specify a path using mod relative syntax instead of a fullpath
+    """allows you do specify a path using mod relative syntax instead of a fullpath
     example:
        assuming vproject is set to d:/main/game/tf
        gamePath( 'models/player/soldier.mdl' )
@@ -1406,14 +1403,14 @@ def gamePath(modRelativeContentPath):
        returns: d:/main/game/tf/models/player/soldier.mdl
 
     NOTE: None is returned in the file can't be found in the mod hierarchy
-    '''
+    """
     return Path(modRelativeContentPath).expandAsGame(gameInfo)
 
 
 def textureAsGameTexture(texturePath):
-    '''
+    """
     returns a resolved game texture filepath given some sort of texture path
-    '''
+    """
     if not isinstance(texturePath, Path):
         texturePath = Path(texturePath)
 
@@ -1435,10 +1432,10 @@ def textureAsGameTexture(texturePath):
 
 
 def textureAsContentTexture(texturePath):
-    '''
+    """
     returns a resolved content texture filepath for some sort of texture path.  it looks for psd
     first, and then for tga.  if neither are found None is returned
-    '''
+    """
     if not isinstance(texturePath, Path):
         texturePath = Path(texturePath)
 
@@ -1465,9 +1462,9 @@ def textureAsContentTexture(texturePath):
 
 
 def resolveMaterialPath(materialPath):
-    '''
+    """
     returns a resolved material path given some sort of material path
-    '''
+    """
     if not isinstance(materialPath, Path):
         materialPath = Path(materialPath)
 

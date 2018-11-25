@@ -37,6 +37,7 @@ def import_texture(path, load_alpha=True, alpha_only=False):
     print('Flipped')
     pixels = np.array(rgba_data.contents, np.uint8)
     pixels = pixels.astype(np.float16, copy=False)
+    has_alpha = False
     if (vtf_lib.get_image_flags().get_flag(ImageFlag.ImageFlagEightBitAlpha) or vtf_lib.get_image_flags().get_flag(
             ImageFlag.ImageFlagOneBitAlpha)) and load_alpha:
         print('Image has alpha channel, splitting and saving it!')
@@ -64,9 +65,12 @@ def import_texture(path, load_alpha=True, alpha_only=False):
             pixels = np.divide(pixels, 255)
             image.pixels = pixels
             image.pack(as_png=True)
+            return image
         except Exception as ex:
             print('Caught exception "{}" '.format(ex))
     vtf_lib.image_destroy()
+
+    return name + '_RGB',(name + '_A') if has_alpha else None
 
 
 def export_texture(blender_texture, path):

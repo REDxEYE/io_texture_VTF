@@ -1,12 +1,12 @@
 from __future__ import with_statement
 
 import os
-import re
-import sys
-import stat
-import shutil
 import pickle as cPickle
-import datetime
+import re
+import shutil
+import stat
+import sys
+from pathlib import Path
 
 from . import valve
 from .perforce import _p4fast, P4Change, p4run, DEFAULT_CHANGE, toDepotAndDiskPaths
@@ -15,6 +15,8 @@ from .perforce import _p4fast, P4Change, p4run, DEFAULT_CHANGE, toDepotAndDiskPa
 try:
     import win32con, win32api
 except ImportError:
+    win32api = None
+    win32con = None
     pass
 
 # set the pickle protocol to use
@@ -29,12 +31,12 @@ OTHER_SEPARATOR = '\\'  # (NASTY_SEPARATOR, NICE_SEPARATOR)[ os.name == 'nt' ]
 UNC_PREFIX = PATH_SEPARATOR * 2
 
 
-def cleanPath(pathString):
-    '''
+def clean_path(path_string):
+    """
     will clean out all nasty crap that gets into pathnames from various sources.
     maya will often put double, sometimes triple slashes, different slash types etc
-    '''
-    path = str(pathString).strip().replace(OTHER_SEPARATOR, PATH_SEPARATOR)
+    """
+    path = str(path_string).strip().replace(OTHER_SEPARATOR, PATH_SEPARATOR)
     isUNC = path.startswith(UNC_PREFIX)
     while path.find(UNC_PREFIX) != -1:
         path = path.replace(UNC_PREFIX, PATH_SEPARATOR)
@@ -45,23 +47,21 @@ def cleanPath(pathString):
     return path
 
 
-ENV_REGEX = re.compile("\%[^%]+\%")
+ENV_REGEX = re.compile("%[^%]+%")
 findall = re.findall
 
 
-def RealPath(path):
-    try:
-        import win32api
-
+def real_path(path):
+    if win32api:
         return win32api.GetLongPathName(win32api.GetShortPathName(str(path)))
-    except:
+    else:
         return path
 
 
 class PathError(Exception):
-    '''
+    """
     Exception to handle errors in path values.
-    '''
+    """
 
     def __init__(self, msg, errno=None):
         # Exception.__init__( self, message )
@@ -75,33 +75,33 @@ class PathError(Exception):
         return str(self.msg)
 
 
-def resolveAndSplit(path, envDict=None, raiseOnMissing=False):
-    '''
+def resolve_and_split(path, env_dict=None, raise_on_missing=False):
+    """
     recursively expands all environment variables and '..' tokens in a pathname
-    '''
-    if envDict is None:
-        envDict = os.environ
+    """
+    if env_dict is None:
+        env_dict = os.environ
 
     path = str(path)
 
     # first resolve any env variables
-    missingVars = set()
+    missing_vars = set()
     if '%' in path:  # performing this check is faster than doing the regex
         matches = findall(ENV_REGEX, path)
         while matches:
             for match in matches:
                 try:
-                    path = path.replace(match, envDict[match[1:-1]])
+                    path = path.replace(match, env_dict[match[1:-1]])
                 except KeyError:
-                    if raiseOnMissing:
+                    if raise_on_missing:
                         raise PathError(
-                            'Attempted to resolve a Path using an environment variable that does not exist.', 1)
-                    missingVars.add(match)
+                            'Attempted to resolve a ValvePath using an environment variable that does not exist.', 1)
+                    missing_vars.add(match)
 
             matches = set(findall(ENV_REGEX, path))
 
             # remove any variables that have been found to be missing...
-            for missing in missingVars:
+            for missing in missing_vars:
                 matches.remove(missing)
 
     # now resolve any subpath navigation
@@ -114,50 +114,51 @@ def resolveAndSplit(path, envDict=None, raiseOnMissing=False):
         path = path[2:]
 
     # remove duplicate separators
-    duplicateSeparator = UNC_PREFIX
-    while duplicateSeparator in path:
-        path = path.replace(duplicateSeparator, PATH_SEPARATOR)
+    duplicate_separator = UNC_PREFIX
+    while duplicate_separator in path:
+        path = path.replace(duplicate_separator, PATH_SEPARATOR)
 
-    pathToks = path.split(PATH_SEPARATOR)
-    pathsToUse = []
-    pathsToUseAppend = pathsToUse.append
-    for n, tok in enumerate(pathToks):
+    path_toks = path.split(PATH_SEPARATOR)
+    paths_to_use = []
+    paths_to_use_append = paths_to_use.append
+    for n, tok in enumerate(path_toks):
         # resolve a .. unless the previous token is a missing envar
         if tok == "..":
-            if n > 0 and (pathToks[n - 1] in missingVars):
+            if n > 0 and (path_toks[n - 1] in missing_vars):
                 raise PathError(
-                    'Attempted to resolve a Path with ".." into the directory of environment variable "{0}" that does not exist.'.format(
-                        pathToks[n - 1]), 2)
+                    'Attempted to resolve a ValvePath with ".." into the directory of environment variable "{0}" that does '
+                    'not exist.'.format(
+                        path_toks[n - 1]), 2)
             try:
-                pathsToUse.pop()
+                paths_to_use.pop()
             except IndexError:
-                if raiseOnMissing:
+                if raise_on_missing:
                     raise
 
-                pathsToUse = pathToks[n:]
+                paths_to_use = path_toks[n:]
                 break
         else:
-            pathsToUseAppend(tok)
+            paths_to_use_append(tok)
 
     # finally convert it back into a path string and pop out the last token if its empty
-    path = PATH_SEPARATOR.join(pathsToUse)
+    path = PATH_SEPARATOR.join(paths_to_use)
     try:
-        if not pathsToUse[-1]:
-            pathsToUse.pop()
+        if not paths_to_use[-1]:
+            paths_to_use.pop()
     except IndexError:
-        raise PathError('Attempted to resolve a Path with "{0}", which is not a valid path string.'.format(path))
+        raise PathError('Attempted to resolve a ValvePath with "{0}", which is not a valid path string.'.format(path))
 
-    path = RealPath(path)
+    path = real_path(path)
 
     # if its a UNC path, stick the UNC prefix
     if isUNC:
-        return UNC_PREFIX + path, pathsToUse, True
+        return UNC_PREFIX + path, paths_to_use, True
 
-    return path, pathsToUse, isUNC
+    return path, paths_to_use, isUNC
 
 
-def resolve(path, envDict=None, raiseOnMissing=False):
-    return resolveAndSplit(path, envDict, raiseOnMissing)[0]
+def resolve(path, env_dict=None, raise_on_missing=False):
+    return resolve_and_split(path, env_dict, raise_on_missing)[0]
 
 
 resolvePath = resolve
@@ -168,21 +169,21 @@ sz_MEGABYTES = 2
 sz_GIGABYTES = 3
 
 
-class Path(str):
+class ValvePath(Path):
     __CASE_MATTERS = os.name != 'nt'
 
     @classmethod
-    def DoP4(cls):
+    def do_p4(cls):
         return P4File.USE_P4
 
-    def asP4(self):
-        '''
+    def as_p4(self):
+        """
         returns self as a P4File instance - the instance is cached so repeated calls to this
         method will result in the same P4File instance being returned.
 
         NOTE: the caching is done within the method, it doesn't rely on the cache decorators
         used elsewhere in this class, so it won't get blown away on cache flush
-        '''
+        """
         try:
             return self.p4
         except AttributeError:
@@ -190,24 +191,24 @@ class Path(str):
             return self.p4
 
     @classmethod
-    def SetCaseMatter(cls, state):
+    def set_case_matter(cls, state):
         cls.__CASE_MATTERS = state
 
     @classmethod
-    def DoesCaseMatter(cls):
+    def does_case_matter(cls):
         return cls.__CASE_MATTERS
 
     @classmethod
-    def Join(cls, *toks, **kw):
+    def join(cls, *toks, **kw):
         return cls('/'.join(toks), **kw)
 
-    def __new__(cls, path='', caseMatters=None, envDict=None):
-        '''
-        if case doesn't matter for the path instance you're creating, setting caseMatters
+    def __new__(cls, path='', case_matters=None, env_dict=None):
+        """
+        if case doesn't matter for the path instance you're creating, setting case_matters
         to False will do things like caseless equality testing, caseless hash generation
-        '''
+        """
 
-        # early out if we've been given a Path instance - paths are immutable so there is no reason not to just return what was passed in
+        # early out if we've been given a ValvePath instance - paths are immutable so there is no reason not to just return what was passed in
         if type(path) == cls:
             return path
 
@@ -215,47 +216,47 @@ class Path(str):
         if path is None:
             path = ''
 
-        resolvedPath, pathTokens, isUnc = resolveAndSplit(path, envDict)
-        new = str.__new__(cls, resolvedPath)
-        new.isUNC = isUnc
-        new.hasTrailing = resolvedPath.endswith(PATH_SEPARATOR)
-        new._splits = tuple(pathTokens)
+        resolved_path, path_tokens, is_unc = resolve_and_split(path, env_dict)
+        new = str.__new__(cls, resolved_path)
+        new.isUNC = is_unc
+        new.hasTrailing = resolved_path.endswith(PATH_SEPARATOR)
+        new._splits = tuple(path_tokens)
         new._passed = path
 
         # case sensitivity, if not specified, defaults to system behaviour
-        if caseMatters is not None:
-            new.__CASE_MATTERS = caseMatters
+        if case_matters is not None:
+            new.__CASE_MATTERS = case_matters
 
         return new
 
     @classmethod
-    def Temp(cls):
-        '''
+    def temp(cls):
+        """
         returns a temporary filepath - the file should be unique (i think) but certainly the file is guaranteed
         to not exist
-        '''
+        """
         import datetime, random
-        def generateRandomPathName():
+        def generate_random_path_name():
             now = datetime.datetime.now()
             rnd = '%06d' % (abs(random.gauss(0.5, 0.5) * 10 ** 6))
             return '%TEMP%' + PATH_SEPARATOR + 'TMP_FILE_%s%s%s%s%s%s%s%s' % (
                 now.year, now.month, now.day, now.hour, now.minute, now.second, now.microsecond, rnd)
 
-        randomPathName = cls(generateRandomPathName())
-        while randomPathName.exists:
-            randomPathName = cls(generateRandomPathName())
+        random_path_name = cls(generate_random_path_name())
+        while random_path_name.exists:
+            random_path_name = cls(generate_random_path_name())
 
-        return randomPathName
+        return random_path_name
 
     def __nonzero__(self):
-        '''
-        a Path instance is "non-zero" if its not '' or '/'  (although I guess '/' is actually a valid path on *nix)
-        '''
-        selfStripped = self.strip()
-        if selfStripped == '':
+        """
+        a ValvePath instance is "non-zero" if its not '' or '/'  (although I guess '/' is actually a valid path on *nix)
+        """
+        self_stripped = self.strip()
+        if self_stripped == '':
             return False
 
-        if selfStripped == PATH_SEPARATOR:
+        if self_stripped == PATH_SEPARATOR:
             return False
 
         return True
@@ -267,8 +268,6 @@ class Path(str):
     __div__ = __add__
     __truediv__ = __add__
 
-
-
     def __radd__(self, other):
         return self.__class__(other, self.__CASE_MATTERS) + self
 
@@ -278,11 +277,11 @@ class Path(str):
         return self._splits[item]
 
     def __getslice__(self, a, b):
-        isUNC = self.isUNC
+        is_unc = self.isUNC
         if a:
-            isUNC = False
+            is_unc = False
 
-        return self._toksToPath(self._splits[a:b], isUNC, self.hasTrailing)
+        return self._toks_to_path(self._splits[a:b], is_unc, self.hasTrailing)
 
     def __len__(self):
 
@@ -295,153 +294,152 @@ class Path(str):
         return item in list(self._splits)
 
     def __hash__(self):
-        '''
+        """
         the hash for two paths that are identical should match - the most reliable way to do this
         is to use a tuple from self.split to generate the hash from
-        '''
+        """
         if not self.__CASE_MATTERS:
             return hash(tuple([s.lower() for s in self._splits]))
 
         return hash(tuple(self._splits))
 
-    def _toksToPath(self, toks, isUNC=False, hasTrailing=False):
-        '''
+    def _toks_to_path(self, toks, is_unc=False, has_trailing=False):
+        """
         given a bunch of path tokens, deals with prepending and appending path
         separators for unc paths and paths with trailing separators
-        '''
+        """
         toks = list(toks)
-        if isUNC:
+        if is_unc:
             toks = ['', ''] + toks
 
-        if hasTrailing:
+        if has_trailing:
             toks.append('')
 
         return self.__class__(PATH_SEPARATOR.join(toks), self.__CASE_MATTERS)
 
-    def resolve(self, envDict=None, raiseOnMissing=False):
-        '''
-        will re-resolve the path given a new envDict
-        '''
-        if envDict is None:
+    def resolve(self, env_dict=None, raise_on_missing=False):
+        """
+        will re-resolve the path given a new env_dict
+        """
+        if env_dict is None:
             return self
         else:
-            return Path(self._passed, self.__CASE_MATTERS, envDict)
+            return ValvePath(self._passed, self.__CASE_MATTERS, env_dict)
 
     def unresolved(self):
-        '''
+        """
         returns the un-resolved path - this is the exact string that the path was instantiated with
-        '''
+        """
         return self._passed
 
-    def isEqual(self, other):
-        '''
+    def is_equal(self, other):
+        """
         compares two paths after all variables have been resolved, and case sensitivity has been
         taken into account - the idea being that two paths are only equal if they refer to the
         same ValveFileSystem object.  NOTE: this doesn't take into account any sort of linking on *nix
         systems...
-        '''
-        if isinstance(other, Path):
+        """
+        if isinstance(other, ValvePath):
             # Convert Paths to strings
-            otherStr = str(other.asFile())
+            other_str = str(other.as_file())
         elif other:
             # Convert non-empty strings to Paths
-            otherStr = Path(other, self.__CASE_MATTERS)
+            other_str = ValvePath(other, self.__CASE_MATTERS)
         else:
             # Leave empty strings and convert non-strings
-            otherStr = str(other)
+            other_str = str(other)
 
-        selfStr = str(self.asFile())
+        self_str = str(self.as_file())
 
         if not self.__CASE_MATTERS:
-            selfStr = selfStr.lower()
-            otherStr = otherStr.lower()
+            self_str = self_str.lower()
+            other_str = other_str.lower()
 
-        return selfStr == otherStr
+        return self_str == other_str
 
-    __eq__ = isEqual
+    __eq__ = is_equal
 
     def __ne__(self, other):
-        return not self.isEqual(other)
+        return not self.is_equal(other)
 
-    def doesCaseMatter(self):
-        return self.__CASE_MATTERS
+    @property
+    def as_str(self):
+        return str(self)
 
     @classmethod
     def getcwd(cls):
-        '''
+        """
         returns the current working directory as a path object
-        '''
+        """
         return cls(os.getcwd())
 
     @classmethod
     def setcwd(cls, path):
-        '''
+        """
         simply sets the current working directory - NOTE: this is a class method so it can be called
         without first constructing a path object
-        '''
-        newPath = cls(path)
+        """
+        new_path = cls(path)
         try:
-            os.chdir(newPath)
+            os.chdir(new_path)
         except WindowsError:
             return None
 
-        return newPath
+        return new_path
 
     putcwd = setcwd
 
-    def getStat(self):
+    def get_stat(self):
         try:
-            return os.stat(self)
+            return os.stat(self.as_str)
         except:
             # return a null stat_result object
             return os.stat_result([0 for n in range(os.stat_result.n_sequence_fields)])
 
-    stat = property(getStat)
+    stat = property(get_stat)
 
-    def getModifiedDate(self):
-        '''
+    def get_modified_date(self):
+        """
         Return the last modified date in seconds.
-        '''
+        """
         return self.stat[8]
 
-    modifiedDate = property(getModifiedDate, doc="Return the last modified date in seconds.")
+    modified_date = property(get_modified_date, doc="Return the last modified date in seconds.")
 
-    def isAbs(self):
+    def is_abs(self):
         try:
             return os.path.isabs(str(self))
         except:
             return False
 
     def abs(self):
-        '''
+        """
         returns the absolute path as is reported by os.path.abspath
-        '''
+        """
         return self.__class__(os.path.abspath(str(self)))
 
     def split(self, sep=None, maxsplit=None):
-        '''
+        """
         Returns the splits tuple - ie. the path tokens
         The additional arguments only included for class compatibility.
-        '''
-        assert (sep == None) or (sep == '\\') or (
-                sep == '/'), "Path objects can only be split by path separators, ie. '/'."
+        """
+        assert (sep is None) or (sep == '\\') or (
+                sep == '/'), "ValvePath objects can only be split by path separators, ie. '/'."
         return list(self._splits)
 
-    def asDir(self):
-        '''
+    def as_dir(self):
+        """
         makes sure there is a trailing / on the end of a path
-        '''
+        """
         if self.hasTrailing:
             return self
 
         return self.__class__('%s%s' % (self._passed, PATH_SEPARATOR), self.__CASE_MATTERS)
 
-    asdir = asDir
-
-    def asFile(self):
-        '''
+    def as_file(self):
+        """
         makes sure there is no trailing path separators
-        '''
+        """
         if not self.hasTrailing:
             return self
 
@@ -451,31 +449,25 @@ class Path(str):
 
         return self.__class__(str(self)[:-1], self.__CASE_MATTERS)
 
-    asfile = asFile
-
-    def isDir(self):
-        '''
+    def is_dir(self):
+        """
         bool indicating whether the path object points to an existing directory or not.  NOTE: a
         path object can still represent a file that refers to a file not yet in existence and this
         method will return False
-        '''
+        """
         return os.path.isdir(self)
 
-    isdir = isDir
-
-    def isFile(self):
-        '''
+    def is_file(self):
+        """
         see isdir notes
-        '''
+        """
         return os.path.isfile(self)
 
-    isfile = isFile
-
-    def getReadable(self):
-        '''
+    def get_readable(self):
+        """
         returns whether the current instance's file is readable or not.  if the file
         doesn't exist False is returned
-        '''
+        """
         try:
             s = os.stat(self)
             return s.st_mode & stat.S_IREAD
@@ -483,13 +475,13 @@ class Path(str):
             # i think this only happens if the file doesn't exist
             return False
 
-    def isReadable(self):
-        return bool(self.getReadable())
+    def is_readable(self):
+        return bool(self.get_readable())
 
-    def setWritable(self, state=True):
-        '''
+    def set_writable(self, state=True):
+        """
         sets the writeable flag (ie: !readonly)
-        '''
+        """
         try:
             setTo = stat.S_IREAD
             if state:
@@ -499,11 +491,11 @@ class Path(str):
         except:
             pass
 
-    def getWritable(self):
-        '''
+    def get_writable(self):
+        """
         returns whether the current instance's file is writeable or not.  if the file
         doesn't exist True is returned
-        '''
+        """
         try:
             s = os.stat(self)
             return s.st_mode & stat.S_IWRITE
@@ -511,33 +503,33 @@ class Path(str):
             # i think this only happens if the file doesn't exist - so return true
             return True
 
-    def isWriteable(self):
-        return bool(self.getWritable())
+    def is_writeable(self):
+        return bool(self.get_writable())
 
-    def getExtension(self):
-        '''
+    def get_extension(self):
+        """
         returns the extension of the path object - an extension is defined as the string after a
         period (.) character in the final path token
-        '''
+        """
         try:
-            endTok = self[-1]
+            end_tok = self[-1]
         except IndexError:
             return ''
 
-        idx = endTok.rfind('.')
+        idx = end_tok.rfind('.')
         if idx == -1:
             return ''
 
-        return endTok[idx + 1:]  # add one to skip the period
+        return end_tok[idx + 1:]  # add one to skip the period
 
-    def setExtension(self, xtn=None, renameOnDisk=False):
-        '''
+    def set_extension(self, xtn=None, rename_on_disk=False):
+        """
         sets the extension the path object.  deals with making sure there is only
         one period etc...
 
-        if the renameOnDisk arg is true, the file on disk (if there is one) is
+        if the rename_on_disk arg is true, the file on disk (if there is one) is
         renamed with the new extension
-        '''
+        """
         if xtn is None:
             xtn = ''
 
@@ -547,48 +539,48 @@ class Path(str):
 
         toks = list(self.split())
         try:
-            endTok = toks.pop()
+            end_tok = toks.pop()
         except IndexError:
-            endTok = ''
+            end_tok = ''
 
-        idx = endTok.rfind('.')
-        name = endTok
+        idx = end_tok.rfind('.')
+        name = end_tok
         if idx >= 0:
-            name = endTok[:idx]
+            name = end_tok[:idx]
 
         if xtn:
-            newEndTok = '%s.%s' % (name, xtn)
+            new_end_tok = '%s.%s' % (name, xtn)
         else:
-            newEndTok = name
+            new_end_tok = name
 
-        if renameOnDisk:
-            self.rename(newEndTok, True)
+        if rename_on_disk:
+            self.rename(new_end_tok, True)
         else:
-            toks.append(newEndTok)
+            toks.append(new_end_tok)
 
-        return self._toksToPath(toks, self.isUNC, self.hasTrailing)
+        return self._toks_to_path(toks, self.isUNC, self.hasTrailing)
 
-    extension = property(getExtension, setExtension)
+    extension = property(get_extension, set_extension)
 
-    def hasExtension(self, extension):
-        '''
+    def has_extension(self, extension):
+        """
         returns whether the extension is of a certain value or not
-        '''
-        ext = self.getExtension()
+        """
+        ext = self.get_extension()
         if not self.__CASE_MATTERS:
             ext = ext.lower()
             extension = extension.lower()
 
         return ext == extension
 
-    isExtension = hasExtension
+    isExtension = has_extension
 
     def name(self, stripExtension=True, stripAllExtensions=False):
-        '''
+        """
         returns the filename by itself - by default it also strips the extension, as the actual filename can
         be easily obtained using self[-1], while extension stripping is either a multi line operation or a
         lengthy expression
-        '''
+        """
         try:
             name = self[-1]
         except IndexError:
@@ -608,16 +600,16 @@ class Path(str):
 
     @property
     def filename(self):
-        '''
+        """
         Returns the filename with extension.
-        '''
+        """
         return self.name(stripExtension=False)
 
     def up(self, levels=1):
-        '''
+        """
         returns a new path object with <levels> path tokens removed from the tail.
-        ie: Path("a/b/c/d").up(2) returns Path("a/b")
-        '''
+        ie: ValvePath("a/b/c/d").up(2) returns ValvePath("a/b")
+        """
         if not levels:
             return self
 
@@ -627,38 +619,38 @@ class Path(str):
         if self.hasTrailing:
             toksToJoin.append('')
 
-        return self._toksToPath(toksToJoin, self.isUNC, self.hasTrailing)
+        return self._toks_to_path(toksToJoin, self.isUNC, self.hasTrailing)
 
     def replace(self, search, replace='', caseMatters=None):
-        '''
+        """
         A simple search replace method - works on path tokens.
         If caseMatters is None, then the system default case sensitivity is used.
-        If the string is not found, the original Path is returned.
-        '''
+        If the string is not found, the original ValvePath is returned.
+        """
         try:
             idx = self.find(search, caseMatters)
         except ValueError:
-            # If no match is found, return original Path
+            # If no match is found, return original ValvePath
             return self
         if idx == -1:
             # string not found, return the original object
             return self
         elif search in ('\\', '/'):
             # Use base class method if the search string is a path sep and return a str. If we don't
-            # return a str, the path replacement would have no effect as the Path.__str__
+            # return a str, the path replacement would have no effect as the ValvePath.__str__
             # representation always presents a path with forward slashes.
             return super(self.__class__, self).replace(search, replace)
 
         toks = list(self.split())
         toks[idx] = replace
 
-        return self._toksToPath(toks, self.isUNC, self.hasTrailing)
+        return self._toks_to_path(toks, self.isUNC, self.hasTrailing)
 
     def find(self, search, caseMatters=None):
-        '''
+        """
         Returns the index of the given path token.
         Returns -1 if the token is not found.
-        '''
+        """
         if search in ('\\', '/'):
             # Use base class method if the search string is a path sep
             return super(self.__class__, self).find(search)
@@ -683,9 +675,9 @@ class Path(str):
     index = find
 
     def doesExist(self):
-        '''
+        """
         returns whether the file exists on disk or not
-        '''
+        """
         try:
             return os.path.exists(self)
         except IndexError:
@@ -694,11 +686,11 @@ class Path(str):
     exists = property(doesExist)
 
     def matchCase(self):
-        '''
-        If running under an env where file case doesn't matter, this method will return a Path instance
+        """
+        If running under an env where file case doesn't matter, this method will return a ValvePath instance
         whose case matches the file on disk.  It assumes the file exists
-        '''
-        if self.doesCaseMatter():
+        """
+        if self.does_case_matter():
             return self
 
         for f in self.up().files():
@@ -706,41 +698,41 @@ class Path(str):
                 return f
 
     def getSize(self, units=sz_MEGABYTES):
-        '''
+        """
         returns the size of the file in mega-bytes
-        '''
+        """
         div = float(1024 ** units)
         return os.path.getsize(self) / div
 
     def create(self):
-        '''
+        """
         if the directory doesn't exist - create it
-        '''
+        """
         if not self.exists:
             os.makedirs(str(self))
 
     def _delete(self):
-        '''
+        """
         WindowsError is raised if the file cannot be deleted
-        '''
-        if self.isfile():
+        """
+        if self.is_file():
             try:
                 os.remove(self)
             except WindowsError as e:
                 win32api.SetFileAttributes(self, win32con.FILE_ATTRIBUTE_NORMAL)
                 os.remove(self)
-        elif self.isdir():
+        elif self.is_dir():
             for f in self.files(recursive=True):
                 f.delete()
 
             win32api.SetFileAttributes(self, win32con.FILE_ATTRIBUTE_NORMAL)
-            shutil.rmtree(str(self.asDir()), True)
+            shutil.rmtree(str(self.as_dir()), True)
 
     def delete(self, doP4=True):
-        '''
+        """
         Delete the file. For P4 operations, return the result.
-        '''
-        if doP4 and P4File.DoP4():
+        """
+        if doP4 and P4File.do_p4():
             try:
                 asP4 = P4File(self)
                 if asP4.managed():
@@ -764,41 +756,41 @@ class Path(str):
     remove = delete
 
     def _rename(self, newName, nameIsLeaf=False):
-        '''
+        """
         it is assumed newPath is a fullpath to the new dir OR file.  if nameIsLeaf is True then
         newName is taken to be a filename, not a filepath.  the fullpath to the renamed file is
         returned
-        '''
-        newPath = Path(newName)
+        """
+        newPath = ValvePath(newName)
         if nameIsLeaf:
             newPath = self.up() / newName
 
-        if self.isfile():
+        if self.is_file():
             if newPath != self:
                 if newPath.exists:
                     newPath.delete()
 
             # Now perform the rename
             os.rename(self, newPath)
-        elif self.isdir():
+        elif self.is_dir():
             raise NotImplementedError('dir renaming not implemented yet...')
 
         return newPath
 
     def rename(self, newName, nameIsLeaf=False, doP4=True):
-        '''
+        """
         it is assumed newPath is a fullpath to the new dir OR file.  if nameIsLeaf is True then
         newName is taken to be a filename, not a filepath.  the instance is modified in place.
         if the file is in perforce, then a p4 rename (integrate/delete) is performed
-        '''
+        """
 
-        newPath = Path(newName)
+        newPath = ValvePath(newName)
         if nameIsLeaf:
             newPath = self.up() / newName
 
-        if self.isfile():
+        if self.is_file():
             tgtExists = newPath.exists
-            if doP4 and P4File.DoP4():
+            if doP4 and P4File.do_p4():
                 reAdd = False
                 change = None
                 asP4 = P4File(self)
@@ -827,7 +819,7 @@ class Path(str):
                     asP4.setChange(change, newPath)
 
                 return ret
-        elif self.isdir():
+        elif self.is_dir():
             raise NotImplementedError('dir renaming not implemented yet...')
 
         return self._rename(newName, nameIsLeaf)
@@ -835,11 +827,11 @@ class Path(str):
     move = rename
 
     def _copy(self, target, nameIsLeaf=False):
-        '''
+        """
         same as rename - except for copying.  returns the new target name
-        '''
-        if self.isfile():
-            target = Path(target)
+        """
+        if self.is_file():
+            target = ValvePath(target)
             if nameIsLeaf:
                 asPath = self.up() / target
                 target = asPath
@@ -850,20 +842,20 @@ class Path(str):
             shutil.copy2(str(self), str(target))
 
             return target
-        elif self.isdir():
+        elif self.is_dir():
             raise NotImplementedError('dir copying not implemented yet...')
 
     # shutil.copytree( str(self), str(target) )
     def copy(self, target, nameIsLeaf=False, doP4=True):
-        '''
+        """
         Same as rename - except for copying. Returns the new target name
-        '''
-        if self.isfile():
-            target = Path(target)
+        """
+        if self.is_file():
+            target = ValvePath(target)
             if nameIsLeaf:
                 target = self.up() / target
 
-            if doP4 and P4File.DoP4():
+            if doP4 and P4File.do_p4():
                 try:
                     asP4 = P4File(self)
                     tgtAsP4 = P4File(target)
@@ -879,11 +871,11 @@ class Path(str):
         return self._copy(target, nameIsLeaf)
 
     def read(self, strip=True):
-        '''
+        """
         returns a list of lines contained in the file. NOTE: newlines are stripped from the end but whitespace
         at the head of each line is preserved unless strip=False
-        '''
-        if self.exists and self.isfile():
+        """
+        if self.exists and self.is_file():
             fileId = open(self)
             if strip:
                 lines = [line.rstrip() for line in fileId.readlines()]
@@ -894,9 +886,9 @@ class Path(str):
             return lines
 
     def _write(self, contentsStr):
-        '''
+        """
         writes a given string to the file defined by self
-        '''
+        """
 
         # make sure the directory to we're writing the file to exists
         self.up().create()
@@ -905,22 +897,22 @@ class Path(str):
             f.write(str(contentsStr))
 
     def write(self, contentsStr, doP4=True):
-        '''
-        Wraps Path.write:  if doP4 is true, the file will be either checked out of p4 before writing or
+        """
+        Wraps ValvePath.write:  if doP4 is true, the file will be either checked out of p4 before writing or
         add to perforce after writing if its not managed already.
-        '''
-        assert isinstance(self, Path)
-        if doP4 and self.DoP4():
+        """
+        assert isinstance(self, ValvePath)
+        if doP4 and self.do_p4():
 
             hasBeenHandled = False
 
-            isUnderClient = self.asP4().isUnderClient()
+            isUnderClient = self.as_p4().isUnderClient()
             if self.exists:
                 # Assume if its writeable that its open for edit already
-                if not self.getWritable():
+                if not self.get_writable():
                     _p4fast('edit', self)
-                    if not self.getWritable():
-                        self.setWritable()
+                    if not self.get_writable():
+                        self.set_writable()
 
                     hasBeenHandled = True
 
@@ -934,9 +926,9 @@ class Path(str):
             return self._write(contentsStr)
 
     def _pickle(self, toPickle):
-        '''
+        """
         similar to the write method but pickles the file
-        '''
+        """
         if self.up():
             # Only create if there is a parent dir
             self.up().create()
@@ -945,17 +937,17 @@ class Path(str):
             cPickle.dump(toPickle, f, PICKLE_PROTOCOL)
 
     def pickle(self, toPickle, doP4=True):
-        assert isinstance(self, Path)
-        if doP4 and P4File.DoP4():
+        assert isinstance(self, ValvePath)
+        if doP4 and P4File.do_p4():
 
             hasBeenHandled = False
 
             isUnderClient = P4File().isUnderClient(self)
             if self.exists:
-                if not self.getWritable():
+                if not self.get_writable():
                     _p4fast('edit', self)
-                    if not self.getWritable():
-                        self.setWritable()
+                    if not self.get_writable():
+                        self.set_writable()
 
                     hasBeenHandled = True
 
@@ -970,9 +962,9 @@ class Path(str):
         return self._pickle(toPickle)
 
     def unpickle(self):
-        '''
+        """
         unpickles the file
-        '''
+        """
         fileId = open(self, 'rb')
         data = cPickle.load(fileId)
         fileId.close()
@@ -980,12 +972,12 @@ class Path(str):
         return data
 
     def relativeTo(self, other):
-        '''
+        """
         returns self as a path relative to another
-        '''
+        """
 
         path = self
-        other = Path(other)
+        other = ValvePath(other)
 
         pathToks = path.split()
         otherToks = other.split()
@@ -1013,7 +1005,7 @@ class Path(str):
                 pathsToDiscard -= 1
 
         newPathToks.extend(path[pathsToDiscard:])
-        path = Path(PATH_SEPARATOR.join(newPathToks), self.__CASE_MATTERS)
+        path = ValvePath(PATH_SEPARATOR.join(newPathToks), self.__CASE_MATTERS)
 
         return path
 
@@ -1023,20 +1015,20 @@ class Path(str):
         return self.__class__(other, self.__CASE_MATTERS).relativeTo(self)
 
     def inject(self, other, envDict=None):
-        '''
+        """
         injects an env variable into the path - if the env variable doesn't
         resolve to tokens that exist in the path, a path string with the same
         value as self is returned...
 
-        NOTE: a string is returned, not a Path instance - as Path instances are
+        NOTE: a string is returned, not a ValvePath instance - as ValvePath instances are
         always resolved
 
         NOTE: this method is alias'd by __lshift__ and so can be accessed using the << operator:
         d:/main/content/mod/models/someModel.ma << '%VCONTENT%' results in %VCONTENT%/mod/models/someModel.ma
-        '''
+        """
 
         toks = toksLower = self._splits
-        otherToks = Path(other, self.__CASE_MATTERS, envDict=envDict).split()
+        otherToks = ValvePath(other, self.__CASE_MATTERS, envDict=envDict).split()
         newToks = []
         n = 0
         if not self.__CASE_MATTERS:
@@ -1066,9 +1058,9 @@ class Path(str):
     __lshift__ = inject
 
     def findNearest(self):
-        '''
+        """
         returns the longest path that exists on disk
-        '''
+        """
         path = self
         while not path.exists and len(path) > 1:
             path = path.up()
@@ -1081,18 +1073,18 @@ class Path(str):
     nearest = findNearest
 
     def asNative(self):
-        '''
+        """
         returns a string with system native path separators
-        '''
+        """
         return str(self).replace(PATH_SEPARATOR, NATIVE_SEPARATOR)
 
     def startswith(self, other):
-        '''
+        """
         returns whether the current instance begins with a given path fragment.  ie:
-        Path('d:/temp/someDir/').startswith('d:/temp') returns True
-        '''
+        ValvePath('d:/temp/someDir/').startswith('d:/temp') returns True
+        """
         if not isinstance(other, type(self)):
-            other = Path(other, self.__CASE_MATTERS)
+            other = ValvePath(other, self.__CASE_MATTERS)
 
         otherToks = other.split()
         selfToks = self.split()
@@ -1111,14 +1103,14 @@ class Path(str):
     isUnder = startswith
 
     def endswith(self, other):
-        '''
+        """
         determines whether self ends with the given path - it can be a string
-        '''
+        """
         # copies of these objects NEED to be made, as the results from them are often cached - hence modification to them
         # would screw up the cache, causing really hard to track down bugs...  not sure what the best answer to this is,
         # but this is clearly not it...  the caching decorator could always return copies of mutable objects, but that
         # sounds wasteful...  for now, this is a workaround
-        otherToks = list(Path(other).split())
+        otherToks = list(ValvePath(other).split())
         selfToks = list(self._splits)
         otherToks.reverse()
         selfToks.reverse()
@@ -1133,18 +1125,18 @@ class Path(str):
         return True
 
     def _list_filesystem_items(self, itemtest, namesOnly=False, recursive=False):
-        '''
+        """
         does all the listing work - itemtest can generally only be one of os.path.isfile or
         os.path.isdir.  if anything else is passed in, the arg given is the full path as a
         string to the ValveFileSystem item
-        '''
+        """
         if not self.exists:
             return
 
         if recursive:
             walker = os.walk(self)
             for path, subs, files in walker:
-                path = Path(path, self.__CASE_MATTERS)
+                path = ValvePath(path, self.__CASE_MATTERS)
 
                 for sub in subs:
                     p = path / sub
@@ -1175,23 +1167,23 @@ class Path(str):
                     yield p
 
     def dirs(self, namesOnly=False, recursive=False):
-        '''
+        """
         returns a generator that lists all sub-directories.  If namesOnly is True, then only directory
         names (relative to the current dir) are returned
-        '''
+        """
         return self._list_filesystem_items(os.path.isdir, namesOnly, recursive)
 
     def files(self, namesOnly=False, recursive=False):
-        '''
+        """
         returns a generator that lists all files under the path (assuming its a directory).  If namesOnly
         is True, then only directory names (relative to the current dir) are returned
-        '''
+        """
         return self._list_filesystem_items(os.path.isfile, namesOnly, recursive)
 
     ########### VALVE SPECIFIC PATH METHODS ###########
 
     def expandAsGame(self, gameInfo, extension=None, mustExist=True):
-        '''
+        """
         expands a given "mod" relative path to a real path under the game tree.  if an extension is not given, it is
         assumed the path already contains an extension.  ie:  models/player/scout.vmt would get expanded to:
         <gameRoot>/<mod found under>/models/player/scout.vmt - where the mod found under is the actual mod the file
@@ -1200,12 +1192,12 @@ class Path(str):
         The mustExistFlag was added due to a bug with how a mod's pre-existing assets were being determined.
         If the files did not exist it would default to the parent mod, and then delete those files as part of a
         clean up step so in the pre-compiled check we set mustExist to be False.
-        '''
+        """
         thePath = self
         if extension is not None:
-            thePath = self.setExtension(extension)
+            thePath = self.set_extension(extension)
 
-        searchPaths = gameInfo.getSearchPaths()
+        searchPaths = gameInfo.get_search_paths()
         for path in searchPaths:
 
             tmp = os.path.join(path, str(thePath))
@@ -1215,14 +1207,14 @@ class Path(str):
         return None
 
     def expandAsContent(self, gameInfo, extension=None):
-        '''
+        """
         as for expandAsGame except for content rooted paths
-        '''
+        """
         thePath = self
         if extension is not None:
-            thePath = self.setExtension(extension)
+            thePath = self.set_extension(extension)
 
-        for mod in gameInfo.getSearchMods():
+        for mod in gameInfo.get_search_mods():
             underMod = '%VCONTENT%' + (mod + thePath)
             if underMod.exists:
                 return underMod
@@ -1230,63 +1222,63 @@ class Path(str):
         return None
 
     def expandAsGameAddon(self, gameInfo, addon, extension=None, mustExist=False):
-        '''
-        Given an addon name, expand a relative Path to an absolute game Path.
-        E.g. passing 'pudge_battle' and a Path of 'maps/pudge_battle.bsp', this would expand to:
+        """
+        Given an addon name, expand a relative ValvePath to an absolute game ValvePath.
+        E.g. passing 'pudge_battle' and a ValvePath of 'maps/pudge_battle.bsp', this would expand to:
         '<VGAME>/dota/dota_addons/pudge_battle/maps/pudge_battle.bsp'
-        '''
+        """
         addonPath = '%VGAME%' + self.expandAsAddonBasePath(addon)
         if extension is not None:
-            addonPath = self.setExtension(extension)
+            addonPath = self.set_extension(extension)
         if (not mustExist) or (os.path.exists(addonPath)):
             return addonPath
 
     def expandAsContentAddon(self, gameinfo, addon, extension=None, mustExist=False):
-        '''
-        Given an addon name, expand a relative Path to an abosolute game Path.
-        E.g. passing 'pudge_battle' and a Path of 'maps/pudge_battle.bsp', this would expand to:
+        """
+        Given an addon name, expand a relative ValvePath to an abosolute game ValvePath.
+        E.g. passing 'pudge_battle' and a ValvePath of 'maps/pudge_battle.bsp', this would expand to:
         '<VCONTENT>/dota/dota_addons/pudge_battle/maps/pudge_battle.bsp'
-        '''
+        """
         addonPath = '%VCONTENT%' + self.expandAsAddonBasePath(addon)
         if extension is not None:
-            addonPath = self.setExtension(extension)
+            addonPath = self.set_extension(extension)
         if (not mustExist) or (os.path.exists(addonPath)):
             return addonPath
 
     def expandAsAddonBasePath(self, addon):
-        '''
-        Given an addon name, expand as an addon-relative Path for the mod.
-        E.g. passing 'pudge_battle' and a Path of 'maps/pudge_battle.bsp', this would expand to:
+        """
+        Given an addon name, expand as an addon-relative ValvePath for the mod.
+        E.g. passing 'pudge_battle' and a ValvePath of 'maps/pudge_battle.bsp', this would expand to:
         'dota_addons/pudge_battle/maps/pudge_battle.bsp'
-        '''
-        return Path('{0}_addons\\{1}\\').format(valve.mod(), addon) + self
+        """
+        return ValvePath('{0}_addons\\{1}\\').format(valve.mod(), addon) + self
 
     def belongsToContent(self, gameInfo):
-        for mod in gameInfo.getSearchMods():
+        for mod in gameInfo.get_search_mods():
             if self.isUnder(valve.content() / mod):
                 return True
 
         return False
 
     def belongsToGame(self, gameInfo):
-        for mod in gameInfo.getSearchMods():
+        for mod in gameInfo.get_search_mods():
             if self.isUnder(valve.game() / mod):
                 return True
         return False
 
     def belongsToMod(self):
-        '''
-        Return True if Path belongs under *content* of the current mod
-        '''
+        """
+        Return True if ValvePath belongs under *content* of the current mod
+        """
         if self.isUnder(valve.content() / valve.mod()):
             return True
         return False
 
     def asRelative(self):
-        '''
+        """
         returns the path relative to either VCONTENT or VGAME.
         If the path isn't under either of these directories, None is returned.
-        '''
+        """
         c = valve.content()
         g = valve.game()
         if self.isUnder(c):
@@ -1296,19 +1288,19 @@ class Path(str):
         return None
 
     def asRelativeFuzzy(self):
-        '''
+        """
         Returns the path relative to either VCONTENT or VGAME if there is an exact match.
         If the path isn't under either of these directories, try looking for a pattern match using 'content' or 'game'
         in the path and matching any of the mods in gameinfo Search Paths.
         If still no matches, return None
-        '''
+        """
         # Try direct match first
         rel = self.asRelative()
         if rel is not None:
             return rel
 
         # No direct matches found, continue
-        mods = valve.gameInfo.getSearchMods()
+        mods = valve.gameInfo.get_search_mods()
         toks = self.split()
         toks_lower = [s.lower() for s in toks]
 
@@ -1319,28 +1311,28 @@ class Path(str):
                     for i in range(len(toks) - 1, 1, -1):
                         # Look for set of tokens that are 'content' followed by the mod name
                         if (toks_lower[i] == modName) and (toks_lower[i - 1] == 'content'):
-                            return Path('\\'.join(toks[i:]))
+                            return ValvePath('\\'.join(toks[i:]))
                 elif 'game' in toks_lower:
                     for i in range(len(toks) - 1, 1, -1):
                         # Look for set of tokens that are 'game' followed by the mod name
                         if (toks_lower[i] == modName) and (toks_lower[i - 1] == 'game'):
-                            return Path('\\'.join(toks[i:]))
+                            return ValvePath('\\'.join(toks[i:]))
         return None
 
     def asModRelative(self):
-        '''
-        Returns a Path instance that is relative to the mod.
+        """
+        Returns a ValvePath instance that is relative to the mod.
         If the path doesn't match the game or content, the original filepath is returned.
-        '''
+        """
         relPath = self.asRelative()
         if not relPath: return self
         return relPath[1:]
 
     def asContentModRelative(self):
-        '''
+        """
         Returns a path instance that is relative to the mod if the path is under the content tree.
         If the path doesn't match the content tree, the original filepath is returned.
-        '''
+        """
         # Make sure the path starts with content before stripping it away
         if self.startswith(valve.content()):
             return self.asRelative()[1:]
@@ -1348,16 +1340,16 @@ class Path(str):
             return self
 
     def asContentModRelativePathFuzzy(self):
-        '''
+        """
         Returns a path instance that is relative to the mod if the path is under the content tree.
         if an automatic match cannot be found, look for the content and mod strings using gameinfo file.
-        '''
+        """
         # Get content-relative path first
         relPath = self.asRelativeFuzzy()
 
         if relPath is not None:
             # Make sure the path starts with a mod in search mods before stripping it away
-            for modName in valve.gameInfo.getSearchMods():
+            for modName in valve.gameInfo.get_search_mods():
                 if relPath.startswith(modName):
                     return relPath[1:]
             # Mod name must already be stripped
@@ -1367,10 +1359,10 @@ class Path(str):
             return self
 
     def asGameModRelative(self):
-        '''
+        """
         Returns a path instance that is relative to the mod if the path is under the game tree.
         If the path doesn't match the game tree, the original filepath is returned.
-        '''
+        """
         # Make sure the path starts with content before stripping it away
         if self.startswith(valve.game()):
             return self.asRelative()[1:]
@@ -1378,29 +1370,29 @@ class Path(str):
             return self
 
     def asAddonRelative(self):
-        '''
-        Takes an absolute Path and returns a path instance that is relative to the addon, either
+        """
+        Takes an absolute ValvePath and returns a path instance that is relative to the addon, either
         in VCONTENT or VGAME. If the path isn't under either of these directories, None is returned.
-        '''
+        """
         relPath = self.asRelative()
         if (relPath) and (relPath.isAddon) and (len(relPath) > 2):
             return relPath[2:]
         return None
 
     def asAddonRelativeFuzzy(self):
-        '''
+        """
         Returns the addon-relative path under either VCONTENT or VGAME if there is an exact match.
         If the path isn't under either of these directories, try looking for a pattern match using 'content' or 'game'
         in the addon path and matching any of the mods in gameinfo Search Paths.
         If still no matches, return None
-        '''
+        """
         # Try direct match first
         rel = self.asAddonRelative()
         if rel is not None:
             return rel
 
         # No direct matches found, continue
-        addonModNames = ['{0}_addons'.format(m.lower()) for m in valve.gameInfo.getSearchMods()]
+        addonModNames = ['{0}_addons'.format(m.lower()) for m in valve.gameInfo.get_search_mods()]
         toks = self.split()
         toks_lower = [s.lower() for s in toks]
 
@@ -1411,41 +1403,41 @@ class Path(str):
                     for i in range(len(toks) - 1, 1, -1):
                         # Look for set of tokens that are 'content' followed by the mod name
                         if (toks_lower[i] == addonModName) and (toks_lower[i - 1] == 'content'):
-                            addonRelPath = Path('\\'.join(toks[i:]))
+                            addonRelPath = ValvePath('\\'.join(toks[i:]))
                             # Return path with mod_addons and addon name removed
                             return addonRelPath[2:]
                 elif 'game' in toks_lower:
                     for i in range(len(toks) - 1, 1, -1):
                         # Look for set of tokens that are 'game' followed by the mod name
                         if (toks_lower[i] == addonModName) and (toks_lower[i - 1] == 'game'):
-                            addonRelPath = Path('\\'.join(toks[i:]))
+                            addonRelPath = ValvePath('\\'.join(toks[i:]))
                             # Return path with mod_addons and addon name removed
                             return addonRelPath[2:]
         return None
 
     def asAddonRelativeGamePath(self):
-        '''
-        Takes an absolute VGAME Path and returns a path instance that is relative to the addon.
+        """
+        Takes an absolute VGAME ValvePath and returns a path instance that is relative to the addon.
         If the path isn't under VGAME, None is returned.
-        '''
+        """
         if self.isUnder(valve.game()):
             return self.asAddonRelative()
         return None
 
     def asAddonRelativeContentPath(self):
-        '''
-        Takes an absolute VCONTENT Path and returns a path instance that is relative to the addon.
+        """
+        Takes an absolute VCONTENT ValvePath and returns a path instance that is relative to the addon.
         If the path isn't under VCONTENT, None is returned.
-        '''
+        """
         if self.isUnder(valve.content()):
             return self.asAddonRelative()
         return None
 
     def asMdl(self, isAddon=False):
-        '''
+        """
         Returns as .mdl path relative to the models directory.
         Passing the isAddon argument as True will force it look for an addon directory to strip from the base of the path.
-        '''
+        """
         p = self.asModRelative()
         assert p != '', 'mdl cannot be determined from empty path!'
 
@@ -1463,10 +1455,10 @@ class Path(str):
         return mdl
 
     def asVMdl(self, isAddon=False):
-        '''
+        """
         Returns as .vmdl path relative to the models directory.
         Passing the isAddon argument as True will force it look for an addon directory to strip from the base of the path.
-        '''
+        """
         p = self.asModRelative()
         assert p != '', 'vmdl cannot be determined from empty path!'
 
@@ -1486,12 +1478,12 @@ class Path(str):
 
     @property
     def addonName(self):
-        '''
+        """
         Returns the addon name, if found, or None.
         Note that this is somewhat strict, as the _addons base directory must be directly under game or content,
         or in the case of a relative path, at the start of the path.
-        '''
-        for base in valve.gameInfo.getAddonRoots():
+        """
+        for base in valve.gameInfo.get_addon_roots():
 
             if (self.startswith(base)) and (len(self) > 1):
                 # The path is already relative, starting with addons dir
@@ -1506,17 +1498,17 @@ class Path(str):
 
     @property
     def isAddon(self):
-        '''
+        """
         Returns True is the path is an Addon path.
         Note that this is somewhat strict, as the <mod>_addons must be directly under game or content, or at the start of the path.
-        '''
+        """
         return (self.addonName is not None)
 
     @property
     def addonBaseDir(self):
-        '''
-        Returns the addons base directory name found in the Path (e.g. 'dota_addons' ) or None.
-        '''
+        """
+        Returns the addons base directory name found in the ValvePath (e.g. 'dota_addons' ) or None.
+        """
         for base in valve.getAddonBasePaths(asContent=self.isUnder(valve.content())):
             if self.isUnder(base):
                 return base.name()
@@ -1525,47 +1517,47 @@ class Path(str):
     ########### Perforce Integration ###########
 
     def edit(self):
-        '''
+        """
         if the file exists and is in perforce, this will open it for edit - if the file isn't in perforce
         AND exists then this will open the file for add, otherwise it does nothing.
-        '''
+        """
         if self.exists:
-            return self.asP4().editoradd()
+            return self.as_p4().editoradd()
 
         return False
 
     editoradd = edit
 
     def add(self, type=None):
-        return self.asP4().add()
+        return self.as_p4().add()
 
     def revert(self):
-        return self.asP4().revert()
+        return self.as_p4().revert()
 
     def asDepot(self):
-        '''
+        """
         returns this instance as a perforce depot path
-        '''
-        return self.asP4().toDepotPath()
+        """
+        return self.as_p4().toDepotPath()
 
     def isEdit(self):
-        '''
+        """
         returns true if the file is open for edit
-        '''
-        return self.asP4().isEdit()
+        """
+        return self.as_p4().isEdit()
 
     def setChange(self, change):
-        '''
+        """
         move to the specified change
-        '''
-        self.asP4().setChange(change)
+        """
+        self.as_p4().setChange(change)
 
 
-class P4File(Path):
-    '''
+class P4File(ValvePath):
+    """
     provides a more convenient way of interfacing with perforce.  NOTE: where appropriate all actions
     are added to the changelist with the description DEFAULT_CHANGE
-    '''
+    """
     USE_P4 = True
 
     __CASE_MATTERS = os.name != 'nt'
@@ -1581,7 +1573,7 @@ class P4File(Path):
     # def __init__( self, *args, **kwargs ):
     # super( self.__class__, self ).__init__( *args, **kwargs )
 
-    # if not self.isFile():
+    # if not self.is_file():
     # raise TypeError( 'Class P4File must refer to a file, not a directory!' )
 
     def run(self, *args, **kwargs):
@@ -1591,7 +1583,7 @@ class P4File(Path):
         if f is None:
             return self
 
-        return Path(f)
+        return ValvePath(f)
 
     def getFileStr(self, f=None, allowMultiple=False, verifyExistence=True):
         if f is None:
@@ -1599,17 +1591,17 @@ class P4File(Path):
 
         if isinstance(f, (list, tuple)):
             if verifyExistence:
-                return '"%s"' % '" "'.join([anF for anF in f if Path(anF).exists])
+                return '"%s"' % '" "'.join([anF for anF in f if ValvePath(anF).exists])
             else:
                 return '"%s"' % '" "'.join(f)
 
-        return '"%s"' % Path(f)
+        return '"%s"' % ValvePath(f)
 
     def getStatus(self, f=None):
-        '''
+        """
         returns the status dictionary for the instance.  if the file isn't managed by perforce,
         None is returned
-        '''
+        """
         if not self.USE_P4:
             return None
 
@@ -1620,9 +1612,9 @@ class P4File(Path):
             return None
 
     def isManaged(self, f=None):
-        '''
+        """
         returns True if the file is managed by perforce, otherwise False
-        '''
+        """
         if not self.USE_P4:
             return False
 
@@ -1641,9 +1633,9 @@ class P4File(Path):
     managed = isManaged
 
     def isUnderClient(self, f=None):
-        '''
+        """
         returns whether the file is in the client's root
-        '''
+        """
         if not self.USE_P4:
             return False
 
@@ -1664,9 +1656,9 @@ class P4File(Path):
         return True
 
     def getAction(self, f=None):
-        '''
+        """
         returns the head "action" of the file - if the file isn't in perforce None is returned...
-        '''
+        """
         if not self.USE_P4:
             return None
 
@@ -1707,9 +1699,9 @@ class P4File(Path):
         return action in editActions
 
     def isLatest(self, f=None):
-        '''
+        """
         returns True if the user has the latest version of the file, otherwise False
-        '''
+        """
 
         # if no p4 integration, always say everything is the latest to prevent complaints from tools
         if not self.USE_P4:
@@ -1732,9 +1724,9 @@ class P4File(Path):
             return False
 
     def isDeleteAtHead(self, f=None):
-        '''
+        """
         Returns True if the file will be deleted at the head revision
-        '''
+        """
         # if no p4 integration, always say everything is not deleted to prevent complaints from tools
         if not self.USE_P4:
             return False
@@ -1774,13 +1766,13 @@ class P4File(Path):
         if not self.USE_P4:
 
             # if p4 is disabled but the file is read-only, set it to be writeable...
-            if not f.getWritable():
-                f.setWritable()
+            if not f.get_writable():
+                f.set_writable()
 
             return False
 
         # if the file is already writeable, assume its checked out already
-        if f.getWritable():
+        if f.get_writable():
             return True
 
         try:
@@ -1809,18 +1801,18 @@ class P4File(Path):
         return self.run('revert', self.getFile(f))
 
     def sync(self, f=None, force=False, rev=None, change=None):
-        '''
+        """
         rev can be a negative number - if it is, it works as previous revisions - so rev=-1 syncs to
         the version prior to the headRev.  you can also specify the change number using the change arg.
         if both a rev and a change are specified, the rev is used
-        '''
+        """
         if not self.USE_P4:
             return False
 
         f = self.getFile(f)
 
         # if file is a directory, then we want to sync to the dir
-        f = str(f.asfile())
+        f = str(f.as_file())
         if not f.startswith(
                 '//'):  # depot paths start with // - but windows will try to poll the network for a computer with the name, so if it starts with //, assume its a depot path
             if os.path.isdir(f):
@@ -1909,12 +1901,12 @@ class P4File(Path):
             return P4Change.CHANGE_NUM_DEFAULT
 
     def setChange(self, newChange=None, f=None):
-        '''
+        """
         sets the changelist the file belongs to. the changelist can be specified as either a changelist
         number, a P4Change object, or a description. if a description is given, the existing pending
         changelists are searched for a matching description.  use 0 for the default changelist.  if
         None is passed, then the changelist as described by self.DEFAULT_CHANGE is used
-        '''
+        """
         if not self.USE_P4:
             return
 
@@ -1937,9 +1929,9 @@ class P4File(Path):
             return []
 
     def getOrCreateChange(self, f=None):
-        '''
+        """
         if the file isn't already in a changelist, this will create one.  returns the change number
-        '''
+        """
         if not self.USE_P4:
             return P4Change.CHANGE_NUM_INVALID
 
@@ -1957,9 +1949,9 @@ class P4File(Path):
         return P4Change.FetchByDescription(description, createIfNotFound).change
 
     def allPaths(self, f=None):
-        '''
+        """
         returns all perforce paths for the file (depot path, workspace path and disk path)
-        '''
+        """
         if not self.USE_P4:
             return None
 
@@ -1968,18 +1960,18 @@ class P4File(Path):
         return toDepotAndDiskPaths([f])[0]
 
     def toDepotPath(self, f=None):
-        '''
+        """
         returns the depot path to the file
-        '''
+        """
         if not self.USE_P4:
             return None
 
         return self.allPaths(f)[0]
 
     def toDiskPath(self, f=None):
-        '''
+        """
         returns the disk path to a depot file
-        '''
+        """
         if not self.USE_P4:
             return None
 
@@ -1990,11 +1982,11 @@ P4Data = P4File  # userd to be called P4Data - this is just for any legacy refer
 
 
 def findInPyPath(filename):
-    '''
+    """
     given a filename or path fragment, will return the full path to the first matching file found in
     the sys.path variable
-    '''
-    for p in map(Path, sys.path):
+    """
+    for p in map(ValvePath, sys.path):
         loc = p / filename
         if loc.exists:
             return loc
@@ -2003,11 +1995,11 @@ def findInPyPath(filename):
 
 
 def findInPath(filename):
-    '''
+    """
     given a filename or path fragment, will return the full path to the first matching file found in
     the PATH env variable
-    '''
-    for p in map(Path, os.environ['PATH'].split(';')):
+    """
+    for p in map(ValvePath, os.environ['PATH'].split(';')):
         loc = p / filename
         if loc.exists:
             return loc
