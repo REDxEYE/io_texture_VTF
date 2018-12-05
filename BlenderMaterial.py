@@ -26,7 +26,7 @@ class BlenderMaterial:
                     self.textures[key] = image
 
     def create_material(self, override=True):
-        mat_name = self.vmt.filepath.name(True)
+        mat_name = self.vmt.filepath.stem
         if bpy.data.materials.get(mat_name) and not override:
             return 'EXISTS'
         bpy.data.materials.new(mat_name)
