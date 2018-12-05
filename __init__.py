@@ -87,6 +87,10 @@ class VTFExport(bpy.types.Operator):
 
     filter_glob = StringProperty(default="*.vtf", options={'HIDDEN'})
 
+    filepath = StringProperty(
+        subtype='FILE_PATH',
+    )
+
     filename = StringProperty(
             name="File Name",
             description="Name used by the exported file",
