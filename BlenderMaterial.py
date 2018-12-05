@@ -6,7 +6,7 @@ try:
     from VTF import VTF
 except:
     from .VMT import VMT
-    from .VTF import VTF
+    from .VTF import import_texture
 
 
 class BlenderMaterial:
@@ -21,7 +21,7 @@ class BlenderMaterial:
             if bpy.data.images.get(name,False):
                 self.textures[key] = bpy.data.images.get(name,False)
             else:
-                image = VTF.import_texture(texture, True, False)
+                image = import_texture(texture, True, False)
                 if image:
                     self.textures[key] = image
 
