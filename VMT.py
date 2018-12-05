@@ -6,8 +6,8 @@ try:
 except:
     from .ValveUtils import KeyValueFile, GameInfoFile
 from pathlib import Path
-
-del os.environ['VProject']
+if os.environ.get('VProject',None):
+    del os.environ['VProject']
 
 
 class VMT:
