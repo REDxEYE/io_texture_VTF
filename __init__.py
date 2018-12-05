@@ -134,7 +134,7 @@ class VTFExport(bpy.types.Operator):
 
 def menu_import(self, context):
     self.layout.operator(VTFImporter.bl_idname, text="VTF texture (.vtf)")
-    #self.layout.operator(VMTImporter.bl_idname, text="VMT texture (.vmt)")
+    self.layout.operator(VMTImporter.bl_idname, text="VMT texture (.vmt)")
 
 def export(self,context):
     curImg = context.space_data.image
