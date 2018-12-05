@@ -17,7 +17,7 @@ from . import BlenderMaterial
 
 import bpy
 
-from bpy.props import StringProperty, BoolProperty,CollectionProperty
+from bpy.props import StringProperty, BoolProperty,CollectionProperty, EnumProperty
 from bpy_extras.io_utils import ExportHelper
 
 import os.path
@@ -82,33 +82,67 @@ class VTFExport(bpy.types.Operator):
     """Export VTF texture"""
     bl_idname = "export_texture.vtf"
     bl_label = "Export VTF"
-    bl_options = {'UNDO'}
 
-    filepath = StringProperty(
-            subtype='FILE_PATH',
-            )
+    filename_ext = ".vtf"
 
     filter_glob = StringProperty(default="*.vtf", options={'HIDDEN'})
+
+    filename = StringProperty(
+            name="File Name",
+            description="Name used by the exported file",
+            maxlen=255,
+            subtype='FILE_NAME',
+            )
+
+    imgFormat = EnumProperty(
+        name="VTF Type Preset",
+        description="Choose a preset. It will affect the result's format and flags.",
+        items=(('RGBA8888Simple', "RGBA8888 Simple", "RGBA8888 format, format-specific Eight Bit Alpha flag only"),
+               ('RGBA8888Normal', "RGBA8888 Normal Map", "RGBA8888 format, format-specific Eight Bit Alpha and Normal Map flags"),
+               ('DXT1Simple', "DXT1 Simple", "DXT1 format, no flags"),
+               ('DXT5Simple', "DXT5 Simple", "DXT5 format, format-specific Eight Bit Alpha flag only"),
+               ('DXT1Normal', "DXT1 Normal Map", "DXT1 format, Normal Map flag only"),
+               ('DXT5Normal', "DXT5 Normal Map", "DXT5 format, format-specific Eight Bit Alpha and Normal Map flags")),
+        default='RGBA8888Simple',
+        )
 
     def execute(self, context):
         sima = context.space_data
         ima = sima.image
-        print(context)
-        VTF.export_texture(ima,self.filepath)
+        if ima is None:
+            self.report({"ERROR_INVALID_INPUT"},"No Image provided")
+        else:
+            print(context)
+            VTF.export_texture(ima,self.filepath,self.imgFormat)
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        wm = context.window_manager
-        wm.fileselect_add(self)
+        if not self.filepath:
+            blend_filepath = context.blend_data.filepath
+            if not blend_filepath:
+                blend_filepath = "untitled"
+            else:
+                blend_filepath = os.path.splitext(blend_filepath)[0]
+                self.filepath = os.path.join(os.path.dirname(blend_filepath), self.filename + self.filename_ext)
+        else:
+            self.filepath = os.path.join(os.path.dirname(self.filepath), self.filename + self.filename_ext)
+
+
+        context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
 
 def menu_import(self, context):
     self.layout.operator(VTFImporter.bl_idname, text="VTF texture (.vtf)")
-    # self.layout.operator(VMTImporter.bl_idname, text="VMT texture (.vmt)")
+    #self.layout.operator(VMTImporter.bl_idname, text="VMT texture (.vmt)")
 
 def export(self,context):
-    self.layout.operator(VTFExport.bl_idname,text='Export to VTF')
+    curImg = context.space_data.image
+    if curImg is None:
+        self.layout.operator(VTFExport.bl_idname,text='Export to VTF')
+    else:
+        self.layout.operator(VTFExport.bl_idname,text='Export to VTF').filename = os.path.splitext(curImg.name)[0]
+
 
 def register():
     bpy.utils.register_module(__name__)
@@ -119,6 +153,7 @@ def register():
 def unregister():
     bpy.utils.unregister_module(__name__)
     bpy.types.INFO_MT_file_import.remove(menu_import)
+    bpy.types.IMAGE_MT_image.remove(export)
 
 
 if __name__ == "__main__":
