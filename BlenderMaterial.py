@@ -36,7 +36,9 @@ class BlenderMaterial:
         nodes.remove(nodes.get('Diffuse BSDF', None))
         out = nodes.get('ShaderNodeOutputMaterial', None)
         if not out:
-            out = nodes.new('ShaderNodeOutputMaterial')
+            out = nodes.get('Material Output',None)
+            if not out:
+                out = nodes.new('ShaderNodeOutputMaterial')
         out.location = (0, 0)
         bsdf = nodes.new('ShaderNodeBsdfPrincipled')
         bsdf.location = (100, 0)
