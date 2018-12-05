@@ -12,8 +12,8 @@ bl_info = {
     #"tracker_url": "http://www.barneyparker.com/blender-json-import-export-plugin",
     "category": "Import-Export"}
 from . import VTF
-# from . import VMT
-# from . import BlenderMaterial
+from . import VMT
+from . import BlenderMaterial
 
 import bpy
 
@@ -52,32 +52,32 @@ class VTFImporter(bpy.types.Operator):
         wm.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-# class VMTImporter(bpy.types.Operator):
-#     """Load Source Engine VMT material"""
-#     bl_idname = "import_texture.vmt"
-#     bl_label = "Import VMT"
-#     bl_options = {'UNDO'}
-#
-#     filepath = StringProperty(
-#             subtype='FILE_PATH',
-#             )
-#
-#     filter_glob = StringProperty(default="*.vmt", options={'HIDDEN'})
-#     game = StringProperty(name="PATH TO GAME",subtype='FILE_PATH',default = "" )
-#     override = BoolProperty(default = False,name='Override existing?')
-#
-#     def execute(self, context):
-#         vmt = VMT.VMT(self.filepath,self.game)
-#         mat = BlenderMaterial.BlenderMaterial(vmt)
-#         mat.load_textures()
-#         if mat.create_material(self.override) == 'EXISTS' and not self.override:
-#             self.report({'INFO'},'{} material already exists')
-#         return {'FINISHED'}
-#
-#     def invoke(self, context, event):
-#         wm = context.window_manager
-#         wm.fileselect_add(self)
-#         return {'RUNNING_MODAL'}
+class VMTImporter(bpy.types.Operator):
+    """Load Source Engine VMT material"""
+    bl_idname = "import_texture.vmt"
+    bl_label = "Import VMT"
+    bl_options = {'UNDO'}
+
+    filepath = StringProperty(
+            subtype='FILE_PATH',
+            )
+
+    filter_glob = StringProperty(default="*.vmt", options={'HIDDEN'})
+    game = StringProperty(name="PATH TO GAME",subtype='FILE_PATH',default = "" )
+    override = BoolProperty(default = False,name='Override existing?')
+
+    def execute(self, context):
+        vmt = VMT.VMT(self.filepath,self.game)
+        mat = BlenderMaterial.BlenderMaterial(vmt)
+        mat.load_textures()
+        if mat.create_material(self.override) == 'EXISTS' and not self.override:
+            self.report({'INFO'},'{} material already exists')
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        wm.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 class VTFExport(bpy.types.Operator):
     """Export VTF texture"""
     bl_idname = "export_texture.vtf"
