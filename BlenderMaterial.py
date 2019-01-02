@@ -33,7 +33,9 @@ class BlenderMaterial:
         mat = bpy.data.materials.get(mat_name)
         mat.use_nodes = True
         nodes = mat.node_tree.nodes
-        nodes.remove(nodes.get('Diffuse BSDF', None))
+        diff = nodes.get('Diffuse BSDF', None)
+        if diff:
+            nodes.remove(diff)
         out = nodes.get('ShaderNodeOutputMaterial', None)
         if not out:
             out = nodes.get('Material Output',None)

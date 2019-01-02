@@ -22,6 +22,8 @@ class VMT:
         self.filepath = Path(filepath)
         if not game_dir:
             game_dir = self._get_proj_root(self.filepath)
+        else:
+            game_dir = Path(game_dir)
         os.environ['VProject'] = str(game_dir)
         self.textures = {}
         self.kv = KeyValueFile(filepath=filepath)
