@@ -3,8 +3,8 @@ from pathlib import Path
 bl_info = {
     "name": "Source Engine VTF Texture import",
     "author": "RED_EYE",
-    "version": (2, 0,),
-    "blender": (2, 80, 0),
+    "version": (1, 8,),
+    "blender": (2, 78, 0),
     'warning': 'Uses a lot of ram (1Gb for 4k texture)',
     "location": "File > Import-Export > Source Engine texture import (VTF)",
     "description": "Import-Export Source Engine texture import (VTF)",
@@ -21,7 +21,8 @@ except:
 
 import bpy
 
-from bpy.props import StringProperty, BoolProperty, CollectionProperty, EnumProperty
+from bpy.props import StringProperty, BoolProperty,CollectionProperty, EnumProperty
+from bpy_extras.io_utils import ExportHelper
 
 import os.path
 import sys
@@ -158,11 +159,11 @@ def export(self, context):
 
 
 classes = (VTFImporter_OT_operator, VMTImporter_OT_operator, VTFExport_OT_operator)
-register_, unregister_ = bpy.utils.register_classes_factory(classes)
+
 
 
 def register():
-    register_()
+    #register_()
     # bpy.utils.register_module(__name__)
     bpy.types.TOPBAR_MT_file_import.append(menu_import)
     bpy.types.IMAGE_MT_image.append(export)
@@ -172,7 +173,7 @@ def unregister():
     # bpy.utils.unregister_module(__name__)
     bpy.types.TOPBAR_MT_file_import.remove(menu_import)
     bpy.types.IMAGE_MT_image.remove(export)
-    unregister_()
+    #unregister_()
 
 
 if __name__ == "__main__":
