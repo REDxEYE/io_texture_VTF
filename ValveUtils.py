@@ -757,3 +757,44 @@ class GameInfoException(Exception):
         Exception.__init__(self, message)
         self.errno = None
         self.strerror = message
+
+
+class MaterialPathResolver():
+    '''
+    "Best Effort" material resolver for use when
+    no Source games are installed, or files are
+    not installed in a Source mod directory
+    '''
+    def __init__(self, filepath):
+        self.filepath = filepath
+
+    @property
+    def filepath(self):
+        return self._filepath
+
+    @filepath.setter
+    def filepath(self, new_filepath):
+        """
+        this wrapper is here so to ensure the _filepath attribute is a ValvePath instance
+        """
+        if type(new_filepath) is not Path:
+            self._filepath = Path(new_filepath)
+        else:
+            self._filepath = new_filepath
+
+    def find_texture(self, filepath):
+        return self.find_file(filepath, 'materials', extention='.vtf')
+
+    def find_file(self, filepath: str, additional_dir=None, extention=None):
+        if additional_dir:
+            new_filepath = self.filepath / additional_dir / filepath
+        else:
+            new_filepath = self.filepath / filepath
+
+        if extention:
+            new_filepath = new_filepath.with_suffix(extention)
+
+        if new_filepath.exists():
+            return new_filepath
+
+        return None
