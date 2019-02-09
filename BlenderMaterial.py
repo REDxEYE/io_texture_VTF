@@ -3,7 +3,7 @@ from pathlib import Path
 
 try:
     from VMT import VMT
-    from VTF import VTF
+    from VTF import import_texture
 except:
     from .VMT import VMT
     from .VTF import import_texture

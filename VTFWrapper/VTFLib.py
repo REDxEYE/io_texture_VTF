@@ -14,7 +14,7 @@ except Exception:
                    VTFLibStructures,
                    VTFLibConstants)
 
-platform_name =  platform.system()
+platform_name = platform.system()
 
 if platform_name == "Windows":
     is64bit = platform.architecture(executable=sys.executable,
@@ -30,6 +30,7 @@ elif platform_name == "Linux":
 else:
     raise NotImplementedError()
 
+
 # TODO: move to util?
 def pointer_to_array(poiter, size, type=c_ubyte):
     return cast(poiter, POINTER(type * size))
@@ -40,6 +41,9 @@ class VTFLib:
         vtflib_cdll = WinDLL(os.path.join(full_path, vtf_lib_name))
     elif platform.system() == "Linux":
         vtflib_cdll = cdll.LoadLibrary(vtf_lib_name)
+    else:
+        vtflib_cdll = None
+        raise NotImplementedError()
 
     def __init__(self):
         self.initialize()
@@ -176,7 +180,7 @@ class VTFLib:
     ImageCreateSingle.restype = c_bool
 
     def image_create_single(self, width, height, image_data, options):
-        image_data = cast(image_data,POINTER(c_byte))
+        image_data = cast(image_data, POINTER(c_byte))
         return self.ImageCreateSingle(width, height, image_data, options)
 
     ImageDestroy = vtflib_cdll.vlImageDestroy
@@ -309,7 +313,6 @@ class VTFLib:
 
         return pointer_to_array(self.convert_to_rgba8888(), size)
 
-
     ImageSetData = vtflib_cdll.vlImageSetData
     ImageSetData.argtypes = [c_uint32, c_uint32, c_uint32, c_uint32, POINTER(c_byte)]
     ImageSetData.restype = None
@@ -419,7 +422,7 @@ class VTFLib:
     ImageFlipImage.argtypes = [POINTER(c_byte), c_uint32, c_int32]
     ImageFlipImage.restype = None
 
-    def flip_image(self, image_data,width=None,height=None,depth=1,mipmaps =-1):
+    def flip_image(self, image_data, width=None, height=None, depth=1, mipmaps=-1):
         width = width or self.width()
         height = height or self.height()
         depth = depth or self.depth()
@@ -429,17 +432,17 @@ class VTFLib:
             image_data = self.convert_to_rgba8888()
         image_data = cast(image_data, POINTER(c_byte))
         self.ImageFlipImage(image_data, width, height)
-        size = self.compute_image_size(width,height, depth, mipmaps,
+        size = self.compute_image_size(width, height, depth, mipmaps,
                                        VTFLibEnums.ImageFormat.ImageFormatRGBA8888)
 
         return pointer_to_array(image_data, size)
 
-    def flip_image_external(self, image_data,width=None,height=None):
+    def flip_image_external(self, image_data, width=None, height=None):
         width = width or self.width()
         height = height or self.height()
         image_data_p = cast(image_data, POINTER(c_byte))
         self.ImageFlipImage(image_data_p, width, height)
-        size = width*height*4
+        size = width * height * 4
 
         return pointer_to_array(image_data, size)
 
