@@ -24,6 +24,8 @@ if platform_name == "Windows":
     full_path = os.path.dirname(__file__)
 elif platform_name == "Linux":
     # On linux we assume this lib is in a predictable location
+    # VTFLib Linux: https://github.com/panzi/VTFLib
+    # requires: libtxc_dxtn 
     vtf_lib_name = "libVTFLib13.so"
 else:
     raise NotImplementedError()
