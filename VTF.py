@@ -4,20 +4,10 @@ from ctypes import create_string_buffer
 from pathlib import Path
 
 import numpy as np
-
-try:
-    import bpy
-except:
-    pass
-try:
-    from VTFWrapper.VTFLibEnums import ImageFlag
-    from VTFWrapper import VTFLib
-    from VTFWrapper import VTFLibEnums
-except:
-    from .VTFWrapper.VTFLibEnums import ImageFlag
-    from .VTFWrapper import VTFLib
-    from .VTFWrapper import VTFLibEnums
-    import bpy
+from .VTFWrapper.VTFLibEnums import ImageFlag
+from .VTFWrapper import VTFLib
+from .VTFWrapper import VTFLibEnums
+import bpy
 vtf_lib = VTFLib.VTFLib()
 
 
