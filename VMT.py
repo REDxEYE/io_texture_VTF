@@ -2,9 +2,9 @@ import os
 from pprint import pprint
 
 try:
-    from ValveUtils import KeyValueFile, GameInfoFile
+    from ValveUtils import KeyValueFile, GameInfoFile, MaterialPathResolver
 except:
-    from .ValveUtils import KeyValueFile, GameInfoFile
+    from .ValveUtils import KeyValueFile, GameInfoFile, MaterialPathResolver
 from pathlib import Path
 if os.environ.get('VProject',None):
     del os.environ['VProject']
@@ -27,7 +27,14 @@ class VMT:
         self.kv = KeyValueFile(filepath=filepath)
         self.shader = self.kv.root_chunk.key
         self.material_data = self.kv.as_dict[self.shader]
-        self.gameinfo = GameInfoFile(game_dir / 'gameinfo.txt')
+        gameinfo_path =  game_dir / 'gameinfo.txt'
+        if os.path.isfile(gameinfo_path):
+            self.gameinfo = GameInfoFile(gameinfo_path)
+        else:
+            # We might not be dealing with a Source installation.
+            # Use material path instead
+            self.gameinfo = MaterialPathResolver(game_dir)
+
 
     def parse(self):
         print(self.shader)
