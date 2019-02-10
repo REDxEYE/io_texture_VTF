@@ -782,10 +782,14 @@ class MaterialPathResolver():
         else:
             self._filepath = new_filepath
 
-    def find_texture(self, filepath):
-        return self.find_file(filepath, 'materials', extention='.vtf')
+    def find_texture(self, filepath, use_recursive=False):
+        return self.find_file(filepath, 'materials', extention='.vtf', use_recursive=use_recursive)
 
-    def find_file(self, filepath: str, additional_dir=None, extention=None):
+    def find_material(self, filepath, use_recursive=False):
+        return self.find_file(filepath, 'materials', extention='.vmt', use_recursive=use_recursive)
+
+    def find_file(self, filepath: str, additional_dir=None, extention=None, use_recursive=False):
+        filepath = filepath.replace('\\', '/')
         if additional_dir:
             new_filepath = self.filepath / additional_dir / filepath
         else:
