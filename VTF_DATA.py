@@ -1,7 +1,7 @@
 from enum import IntEnum
 from typing import List
 
-from ByteIO import ByteIO
+from .ByteIO import ByteIO
 
 class VTF_FLAGS:
     POINTSAMPLE = 0x00000001,

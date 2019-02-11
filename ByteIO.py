@@ -244,24 +244,3 @@ class ByteIO:
         ret = writer(value)
         self.seek(curr_offset, io.SEEK_SET)
         return ret
-
-
-if __name__ == '__main__':
-    a = ByteIO(path=r'./test.bin', mode='w')
-    a.write_fourcc("IDST")
-    # a.write_int8(108)
-    # a.write_uint32(104)
-    # a.write_to_offset(1024,a.write_uint32,84,True)
-    # a.write_double(15.58)
-    # a.write_float(18.58)
-    # a.write_uint64(18564846516)
-    # a.write_ascii_string('Test123')
-    a.close()
-    a = ByteIO(file=open(r'./test.bin', mode='rb'))
-    print(a.peek_uint32())
-    # print(a.read_from_offset(1024,a.read_uint32))
-    # print(a.read_uint32())
-    # print(a.read_double())
-    # print(a.read_float())
-    # print(a.read_uint64())
-    # print(a.read_ascii_string())

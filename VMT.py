@@ -1,10 +1,6 @@
 import os
 from pprint import pprint
-
-try:
-    from ValveUtils import KeyValueFile, GameInfoFile, MaterialPathResolver
-except:
-    from .ValveUtils import KeyValueFile, GameInfoFile, MaterialPathResolver
+from .ValveFileSystem.valve import KeyValueFile, GameInfoFile, MaterialPathResolver
 from pathlib import Path
 if os.environ.get('VProject',None):
     del os.environ['VProject']
@@ -35,7 +31,6 @@ class VMT:
             # Use material path instead
             self.gameinfo = MaterialPathResolver(game_dir)
 
-
     def parse(self):
         print(self.shader)
         for key, value in self.material_data.items():
@@ -47,10 +42,3 @@ class VMT:
             # if textureAsGameTexture(value):
             #     self.textures[key[1:].lower()] = textureAsGameTexture(value)
 
-
-if __name__ == '__main__':
-    # vmt = VMT(r'G:\SteamLibrary\SteamApps\common\SourceFilmmaker\game\usermod\materials\models\Red_eye\Endless\Qhala\normal body.vmt',r'G:\SteamLibrary\SteamApps\common\SourceFilmmaker\game\usermod')
-    vmt = VMT(
-        r'G:\SteamLibrary\SteamApps\common\SourceFilmmaker\game\usermod\materials\models\Red_eye\Xeno\Lewd_Xeno_male\Xenomorph_D.vmt')
-    vmt.parse()
-    pprint(vmt.textures)

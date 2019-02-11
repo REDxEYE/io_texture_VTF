@@ -12,12 +12,10 @@ bl_info = {
     # "tracker_url": "http://www.barneyparker.com/blender-json-import-export-plugin",
     "category": "Import-Export"
 }
-try:
-    from . import VTF
-    from . import VMT
-    from . import BlenderMaterial
-except:
-    import VTF,VMT,BlenderMaterial
+
+from . import VTF
+from . import VMT
+from . import BlenderMaterial
 
 import bpy
 
@@ -154,7 +152,7 @@ def export(self, context):
         self.layout.operator(VTFExport_OT_operator.bl_idname, text='Export to VTF')
     else:
         self.layout.operator(VTFExport_OT_operator.bl_idname, text='Export to VTF').filename = \
-        os.path.splitext(curImg.name)[0]
+            os.path.splitext(curImg.name)[0]
 
 
 classes = (VTFImporter_OT_operator, VMTImporter_OT_operator, VTFExport_OT_operator)

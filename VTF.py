@@ -4,9 +4,9 @@ from ctypes import create_string_buffer
 from pathlib import Path
 
 import numpy as np
-from .VTFWrapper.VTFLibEnums import ImageFlag
-from .VTFWrapper import VTFLib
-from .VTFWrapper import VTFLibEnums
+from .VTFLibWrapper.VTFLibEnums import ImageFlag
+from .VTFLibWrapper import VTFLib
+from .VTFLibWrapper import VTFLibEnums
 import bpy
 vtf_lib = VTFLib.VTFLib()
 
@@ -94,8 +94,3 @@ def export_texture(blender_texture, path, imageFormat = None):
     vtf_lib.image_create_single(w, h, image_data, def_options)
     vtf_lib.image_save(path)
     vtf_lib.image_destroy()
-
-
-if __name__ == '__main__':
-    import_texture(r'E:\PYTHON_STUFF\SourceVTF\test_data\brooch_bird_diffuse.vtf')
-    # import_texture(r'E:\PYTHON_STUFF\SourceVTF\test_data\alpha.vtf')
