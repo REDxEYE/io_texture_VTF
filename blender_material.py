@@ -14,8 +14,8 @@ class BlenderMaterial:
     def load_textures(self):
         for key, texture in self.vmt.textures.items():
             name = Path(texture).stem
-            if bpy.data.images.get(name,False):
-                self.textures[key] = bpy.data.images.get(name,False)
+            if bpy.data.images.get(name, False):
+                self.textures[key] = bpy.data.images.get(name, False)
             else:
                 image = import_texture(texture, True, False)
                 if image:
@@ -30,7 +30,8 @@ class BlenderMaterial:
 
     def create_material(self, override=True):
         mat_name = self.vmt.filepath.stem
-        if bpy.data.materials.get(mat_name) or self.find_material_case_insensitive(mat_name) and not override:
+        if bpy.data.materials.get(mat_name) or self.find_material_case_insensitive(
+                mat_name) and not override:
             return 'EXISTS'
 
         mat = bpy.data.materials.get(mat_name)
@@ -61,7 +62,7 @@ class BlenderMaterial:
 
         out = nodes.get('ShaderNodeOutputMaterial', None)
         if not out:
-            out = nodes.get('Material Output',None)
+            out = nodes.get('Material Output', None)
             if not out:
                 out = nodes.new('ShaderNodeOutputMaterial')
         out.location = (0, 0)
@@ -72,7 +73,9 @@ class BlenderMaterial:
             tex = nodes.new('ShaderNodeTexImage')
             tex.image = self.textures.get('$basetexture')
             tex.location = (200, -100)
-            mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs['Base Color'])
+            mat.node_tree.links.new(
+                tex.outputs["Color"],
+                bsdf.inputs['Base Color'])
         if self.textures.get('$bumpmap', False):
             tex = nodes.new('ShaderNodeTexImage')
             tex.image = self.textures.get('$bumpmap')
@@ -80,8 +83,12 @@ class BlenderMaterial:
             tex.color_space = 'NONE'
             normal = nodes.new("ShaderNodeNormalMap")
             normal.location = (150, -50)
-            mat.node_tree.links.new(tex.outputs["Color"], normal.inputs['Color'])
-            mat.node_tree.links.new(normal.outputs["Normal"], bsdf.inputs['Normal'])
+            mat.node_tree.links.new(
+                tex.outputs["Color"],
+                normal.inputs['Color'])
+            mat.node_tree.links.new(
+                normal.outputs["Normal"],
+                bsdf.inputs['Normal'])
         if self.textures.get('$phongexponenttexture', False):
             tex = nodes.new('ShaderNodeTexImage')
             tex.image = self.textures.get('$phongexponenttexture')

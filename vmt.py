@@ -1,7 +1,7 @@
 import os
 from .ValveFileSystem.valve import KeyValueFile, GameInfoFile, MaterialPathResolver
 from pathlib import Path
-if os.environ.get('VProject',None):
+if os.environ.get('VProject', None):
     del os.environ['VProject']
 
 
@@ -22,7 +22,7 @@ class VMT:
         self.kv = KeyValueFile(filepath=filepath)
         self.shader = self.kv.root_chunk.key
         self.material_data = self.kv.as_dict[self.shader]
-        gameinfo_path =  game_dir / 'gameinfo.txt'
+        gameinfo_path = game_dir / 'gameinfo.txt'
         if os.path.isfile(gameinfo_path):
             self.gameinfo = GameInfoFile(gameinfo_path)
         else:
@@ -33,11 +33,10 @@ class VMT:
     def parse(self):
         print(self.shader)
         for key, value in self.material_data.items():
-            if type(value) is str:
+            if isinstance(value, str):
                 texture = self.gameinfo.find_texture(value)
                 if texture:
                     self.textures[key] = texture
                     # print(texture)
             # if textureAsGameTexture(value):
             #     self.textures[key[1:].lower()] = textureAsGameTexture(value)
-

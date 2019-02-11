@@ -3,6 +3,7 @@ from typing import List
 
 from .ValveFileSystem.byte_io import ByteIO
 
+
 class VTF_FLAGS:
     POINTSAMPLE = 0x00000001,
     TRILINEAR = 0x00000002,
@@ -47,11 +48,13 @@ class VTF_FLAGS:
     @staticmethod
     def get_flags(value):
         flags = []
-        vars_ = {var:VTF_FLAGS.__dict__[var] for var in vars(VTF_FLAGS) if not var.startswith('_') and var.isupper()}
-        for var,int_ in vars_.items():
-            if (value & int_[0])>0:
+        vars_ = {var: VTF_FLAGS.__dict__[var] for var in vars(
+            VTF_FLAGS) if not var.startswith('_') and var.isupper()}
+        for var, int_ in vars_.items():
+            if (value & int_[0]) > 0:
                 flags.append(var)
         return flags
+
 
 class VTF_FORMATS(IntEnum):
     RGBA8888 = 0
@@ -93,6 +96,7 @@ class VTF_FORMATS(IntEnum):
     NV_NULL = 36
     ATI2N = 37
 
+
 class VTF_HEADER:
     def __init__(self):
         self.signature = []  # type: List[str]*4
@@ -113,15 +117,16 @@ class VTF_HEADER:
         self.low_res_image_width = 0
         self.low_res_image_height = 0
         self.depth = 1
-        self.padding2 = [] # type: List[int]*3
+        self.padding2 = []  # type: List[int]*3
         self.numResources = 0
 
     def __repr__(self):
-        return "<VTF v{0[0]}.{0[1]} size:{1}x{2} format:{3}>".format(self.version,self.width,self.height,VTF_FORMATS(self.high_res_image_format).name)
+        return "<VTF v{0[0]}.{0[1]} size:{1}x{2} format:{3}>".format(
+            self.version, self.width, self.height, VTF_FORMATS(self.high_res_image_format).name)
 
-    def read(self,reader:ByteIO):
+    def read(self, reader: ByteIO):
         self.signature = reader.read_fourcc()
-        self.version = [reader.read_uint32(),reader.read_uint32()]
+        self.version = [reader.read_uint32(), reader.read_uint32()]
         self.header_size = reader.read_uint32()
         self.width = reader.read_uint16()
         self.height = reader.read_uint16()
