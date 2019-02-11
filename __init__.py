@@ -1,6 +1,6 @@
 from pathlib import Path
-from . import vtf
-from . import vmt
+from .vtf import import_texture, export_texture
+from .vmt import VMT
 from . import blender_material
 import bpy
 from bpy.props import StringProperty, BoolProperty, CollectionProperty, EnumProperty
@@ -44,7 +44,7 @@ class VTFImporter_OT_operator(bpy.types.Operator):
     def execute(self, context):
         directory = Path(self.filepath).parent.absolute()
         for file in self.files:
-            vtf.import_texture(str(directory / file.name), self.load_alpha, self.only_alpha)
+            import_texture(str(directory / file.name), self.load_alpha, self.only_alpha)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -68,7 +68,7 @@ class VMTImporter_OT_operator(bpy.types.Operator):
     override = BoolProperty(default=False, name='Override existing?')
 
     def execute(self, context):
-        vmt = vmt.VMT(self.filepath, self.game)
+        vmt = VMT(self.filepath, self.game)
         mat = blender_material.BlenderMaterial(vmt)
         mat.load_textures()
         if mat.create_material(self.override) == 'EXISTS' and not self.override:
@@ -121,7 +121,7 @@ class VTFExport_OT_operator(bpy.types.Operator):
             self.report({"ERROR_INVALID_INPUT"}, "No Image provided")
         else:
             print(context)
-            vtf.export_texture(ima, self.filepath, self.imgFormat)
+            export_texture(ima, self.filepath, self.imgFormat)
         return {'FINISHED'}
 
     def invoke(self, context, event):
