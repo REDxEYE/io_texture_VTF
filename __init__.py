@@ -1,4 +1,14 @@
 from pathlib import Path
+from . import vtf
+from . import vmt
+from . import BlenderMaterial
+import bpy
+from bpy.props import StringProperty, BoolProperty, CollectionProperty, EnumProperty
+import os.path
+import sys
+
+# Add shared library to the path
+sys.path.append(".ValveFileSystem")
 
 bl_info = {
     "name": "Source Engine VTF Texture import",
@@ -12,18 +22,6 @@ bl_info = {
     # "tracker_url": "http://www.barneyparker.com/blender-json-import-export-plugin",
     "category": "Import-Export"
 }
-
-from . import VTF
-from . import VMT
-from . import BlenderMaterial
-
-import bpy
-
-from bpy.props import StringProperty, BoolProperty, CollectionProperty, EnumProperty
-
-import os.path
-import sys
-
 print('Appending "{}" to PATH'.format(os.path.abspath(os.path.dirname(__file__))))
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
@@ -46,7 +44,7 @@ class VTFImporter_OT_operator(bpy.types.Operator):
     def execute(self, context):
         directory = Path(self.filepath).parent.absolute()
         for file in self.files:
-            VTF.import_texture(str(directory / file.name), self.load_alpha, self.only_alpha)
+            vtf.import_texture(str(directory / file.name), self.load_alpha, self.only_alpha)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -70,7 +68,7 @@ class VMTImporter_OT_operator(bpy.types.Operator):
     override = BoolProperty(default=False, name='Override existing?')
 
     def execute(self, context):
-        vmt = VMT.VMT(self.filepath, self.game)
+        vmt = vmt.VMT(self.filepath, self.game)
         mat = BlenderMaterial.BlenderMaterial(vmt)
         mat.load_textures()
         if mat.create_material(self.override) == 'EXISTS' and not self.override:
@@ -123,7 +121,7 @@ class VTFExport_OT_operator(bpy.types.Operator):
             self.report({"ERROR_INVALID_INPUT"}, "No Image provided")
         else:
             print(context)
-            VTF.export_texture(ima, self.filepath, self.imgFormat)
+            vtf.export_texture(ima, self.filepath, self.imgFormat)
         return {'FINISHED'}
 
     def invoke(self, context, event):

@@ -1,5 +1,4 @@
 import os
-from pprint import pprint
 from .ValveFileSystem.valve import KeyValueFile, GameInfoFile, MaterialPathResolver
 from pathlib import Path
 if os.environ.get('VProject',None):

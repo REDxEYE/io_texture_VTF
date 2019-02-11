@@ -1,5 +1,3 @@
-# from ctypes import c_ubyte,c_float
-# from PIL import Image
 from ctypes import create_string_buffer
 from pathlib import Path
 
