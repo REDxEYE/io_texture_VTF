@@ -1,7 +1,7 @@
 from pathlib import Path
 from . import vtf
 from . import vmt
-from . import BlenderMaterial
+from . import blender_material
 import bpy
 from bpy.props import StringProperty, BoolProperty, CollectionProperty, EnumProperty
 import os.path
@@ -69,7 +69,7 @@ class VMTImporter_OT_operator(bpy.types.Operator):
 
     def execute(self, context):
         vmt = vmt.VMT(self.filepath, self.game)
-        mat = BlenderMaterial.BlenderMaterial(vmt)
+        mat = blender_material.BlenderMaterial(vmt)
         mat.load_textures()
         if mat.create_material(self.override) == 'EXISTS' and not self.override:
             self.report({'INFO'}, '{} material already exists')
