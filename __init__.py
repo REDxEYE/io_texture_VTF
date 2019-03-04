@@ -1,4 +1,14 @@
 from pathlib import Path
+from .vtf import import_texture, export_texture
+from .vmt import VMT
+from . import blender_material
+import bpy
+from bpy.props import StringProperty, BoolProperty, CollectionProperty, EnumProperty
+import os.path
+import sys
+
+# Add shared library to the path
+sys.path.append(".ValveFileSystem")
 
 bl_info = {
     "name": "Source Engine VTF Texture import",
@@ -12,21 +22,10 @@ bl_info = {
     # "tracker_url": "http://www.barneyparker.com/blender-json-import-export-plugin",
     "category": "Import-Export"
 }
-try:
-    from . import VTF
-    from . import VMT
-    from . import BlenderMaterial
-except:
-    import VTF,VMT,BlenderMaterial
-
-import bpy
-
-from bpy.props import StringProperty, BoolProperty, CollectionProperty, EnumProperty
-
-import os.path
-import sys
-
-print('Appending "{}" to PATH'.format(os.path.abspath(os.path.dirname(__file__))))
+print(
+    'Appending "{}" to PATH'.format(
+        os.path.abspath(
+            os.path.dirname(__file__))))
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 
@@ -39,16 +38,20 @@ class VTFImporter_OT_operator(bpy.types.Operator):
     filepath = StringProperty(
         subtype='FILE_PATH',
     )
-    files = CollectionProperty(name='File paths', type=bpy.types.OperatorFileListElement)
+    files = CollectionProperty(
+        name='File paths',
+        type=bpy.types.OperatorFileListElement)
 
-    load_alpha = BoolProperty(default=True, name='Load alpha into separate image')
+    load_alpha = BoolProperty(default=True,
+                              name='Load alpha into separate image')
     only_alpha = BoolProperty(default=False, name='Only load alpha')
     filter_glob = StringProperty(default="*.vtf", options={'HIDDEN'})
 
     def execute(self, context):
         directory = Path(self.filepath).parent.absolute()
         for file in self.files:
-            VTF.import_texture(str(directory / file.name), self.load_alpha, self.only_alpha)
+            import_texture(str(directory / file.name),
+                           self.load_alpha, self.only_alpha)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -72,10 +75,11 @@ class VMTImporter_OT_operator(bpy.types.Operator):
     override = BoolProperty(default=False, name='Override existing?')
 
     def execute(self, context):
-        vmt = VMT.VMT(self.filepath, self.game)
-        mat = BlenderMaterial.BlenderMaterial(vmt)
+        vmt = VMT(self.filepath, self.game)
+        mat = blender_material.BlenderMaterial(vmt)
         mat.load_textures()
-        if mat.create_material(self.override) == 'EXISTS' and not self.override:
+        if mat.create_material(
+                self.override) == 'EXISTS' and not self.override:
             self.report({'INFO'}, '{} material already exists')
         return {'FINISHED'}
 
@@ -112,8 +116,10 @@ class VTFExport_OT_operator(bpy.types.Operator):
                ('RGBA8888Normal', "RGBA8888 Normal Map",
                 "RGBA8888 format, format-specific Eight Bit Alpha and Normal Map flags"),
                ('DXT1Simple', "DXT1 Simple", "DXT1 format, no flags"),
-               ('DXT5Simple', "DXT5 Simple", "DXT5 format, format-specific Eight Bit Alpha flag only"),
-               ('DXT1Normal', "DXT1 Normal Map", "DXT1 format, Normal Map flag only"),
+               ('DXT5Simple', "DXT5 Simple",
+                "DXT5 format, format-specific Eight Bit Alpha flag only"),
+               ('DXT1Normal', "DXT1 Normal Map",
+                "DXT1 format, Normal Map flag only"),
                ('DXT5Normal', "DXT5 Normal Map", "DXT5 format, format-specific Eight Bit Alpha and Normal Map flags")),
         default='RGBA8888Simple',
     )
@@ -125,7 +131,7 @@ class VTFExport_OT_operator(bpy.types.Operator):
             self.report({"ERROR_INVALID_INPUT"}, "No Image provided")
         else:
             print(context)
-            VTF.export_texture(ima, self.filepath, self.imgFormat)
+            export_texture(ima, self.filepath, self.imgFormat)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -135,29 +141,44 @@ class VTFExport_OT_operator(bpy.types.Operator):
                 blend_filepath = "untitled"
             else:
                 blend_filepath = os.path.splitext(blend_filepath)[0]
-                self.filepath = os.path.join(os.path.dirname(blend_filepath), self.filename + self.filename_ext)
+                self.filepath = os.path.join(
+                    os.path.dirname(blend_filepath),
+                    self.filename + self.filename_ext)
         else:
-            self.filepath = os.path.join(os.path.dirname(self.filepath), self.filename + self.filename_ext)
+            self.filepath = os.path.join(
+                os.path.dirname(
+                    self.filepath),
+                self.filename +
+                self.filename_ext)
 
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
 
 def menu_import(self, context):
-    self.layout.operator(VTFImporter_OT_operator.bl_idname, text="VTF texture (.vtf)")
-    self.layout.operator(VMTImporter_OT_operator.bl_idname, text="VMT texture (.vmt)")
+    self.layout.operator(
+        VTFImporter_OT_operator.bl_idname,
+        text="VTF texture (.vtf)")
+    self.layout.operator(
+        VMTImporter_OT_operator.bl_idname,
+        text="VMT texture (.vmt)")
 
 
 def export(self, context):
     curImg = context.space_data.image
     if curImg is None:
-        self.layout.operator(VTFExport_OT_operator.bl_idname, text='Export to VTF')
+        self.layout.operator(
+            VTFExport_OT_operator.bl_idname,
+            text='Export to VTF')
     else:
         self.layout.operator(VTFExport_OT_operator.bl_idname, text='Export to VTF').filename = \
-        os.path.splitext(curImg.name)[0]
+            os.path.splitext(curImg.name)[0]
 
 
-classes = (VTFImporter_OT_operator, VMTImporter_OT_operator, VTFExport_OT_operator)
+classes = (
+    VTFImporter_OT_operator,
+    VMTImporter_OT_operator,
+    VTFExport_OT_operator)
 register_, unregister_ = bpy.utils.register_classes_factory(classes)
 
 
