@@ -165,13 +165,13 @@ classes = (VTFImporter_OT_operator, VMTImporter_OT_operator, VTFExport_OT_operat
 def register():
     #register_()
     # bpy.utils.register_module(__name__)
-    bpy.types.TOPBAR_MT_file_import.append(menu_import)
+    bpy.types.INFO_MT_file_import.append(menu_import)
     bpy.types.IMAGE_MT_image.append(export)
 
 
 def unregister():
     # bpy.utils.unregister_module(__name__)
-    bpy.types.TOPBAR_MT_file_import.remove(menu_import)
+    bpy.types.INFO_MT_file_import.remove(menu_import)
     bpy.types.IMAGE_MT_image.remove(export)
     #unregister_()
 
